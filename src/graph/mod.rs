@@ -114,19 +114,19 @@ impl Graph {
                          -> (Vec<NodeOffset>, Vec<HalfEdge>, Vec<HalfEdge>) {
         use std::cmp::Ordering;
 
-        fn calc_offset_inner(edges: &Vec<EdgeInfo>,
+        fn calc_offset_inner(edges: &[EdgeInfo],
                              node_offsets: &mut Vec<NodeOffset>,
-                             mode: OffsetMode) {
+                             mode: &OffsetMode) {
 
             let mut last_id = 0;
             for (index, edge) in edges.iter().enumerate() {
 
-                let cur_id = match mode {
+                let cur_id = match *mode {
                     OffsetMode::In => edge.dest,
                     OffsetMode::Out => edge.source,
                 };
                 for node_offset in &mut node_offsets[last_id + 1..cur_id + 1] {
-                    match mode {
+                    match *mode {
                         OffsetMode::In => {
                             node_offset.in_start = index;
                         }
@@ -140,7 +140,7 @@ impl Graph {
             }
 
             for node_offset in &mut node_offsets[last_id + 1..] {
-                match mode {
+                match *mode {
                     OffsetMode::In => {
                         node_offset.in_start = edges.len();
                     }
@@ -160,7 +160,7 @@ impl Graph {
                               _ => ord,
                           }
                       });
-        calc_offset_inner(&edges, &mut node_offsets, OffsetMode::Out);
+        calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::Out);
         let out_edges = Graph::create_half_edges(&edges, OffsetMode::Out);
 
         edges.sort_by(|a, b| {
@@ -170,13 +170,13 @@ impl Graph {
                               _ => ord,
                           }
                       });
-        calc_offset_inner(&edges, &mut node_offsets, OffsetMode::In);
+        calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::In);
         let in_edges = Graph::create_half_edges(&edges, OffsetMode::In);
 
 
         (node_offsets, in_edges, out_edges)
     }
-    fn create_half_edges(edges: &Vec<EdgeInfo>, mode: OffsetMode) -> Vec<HalfEdge> {
+    fn create_half_edges(edges: &[EdgeInfo], mode: OffsetMode) -> Vec<HalfEdge> {
         match mode {
 
             OffsetMode::In => {
@@ -210,7 +210,7 @@ impl Graph {
         self.node_offsets.len()
     }
 
-    fn map_edges_to_node_index(nodes: &Vec<NodeInfo>, edges: &mut Vec<EdgeInfo>) {
+    fn map_edges_to_node_index(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
         use std::collections::hash_map::HashMap;
         let map: HashMap<OsmNodeId, usize> = nodes
             .iter()
