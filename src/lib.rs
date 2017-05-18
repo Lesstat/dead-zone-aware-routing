@@ -5,5 +5,6 @@ extern crate osmpbfreader;
 
 mod graph;
 mod pbf;
+mod grid;
 
 pub use pbf::load_graph;

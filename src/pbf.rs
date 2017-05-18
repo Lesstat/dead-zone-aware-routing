@@ -44,27 +44,12 @@ pub fn load_graph<P: AsRef<Path>>(p: P) -> Graph {
             _ => (),
         }
     }
-    let start_mapping = Instant::now();
-    nodes.sort_by_key(|node_info| node_info.osm_id);
-    for edge in &mut edges {
-        let index = nodes
-            .binary_search_by_key(&edge.source, |node_info| node_info.osm_id)
-            .expect("source not found");
-        edge.source = index;
-        let index = nodes
-            .binary_search_by_key(&edge.dest, |node_info| node_info.osm_id)
-            .expect("dest not found");
-        edge.dest = index;
-
-    }
     let start_graph = Instant::now();
     let g = Graph::new(nodes, edges);
     let end_graph = Instant::now();
 
     println!("loading time: {:?}",
-             start_mapping.duration_since(start_loading));
-    println!("mapping time: {:?}",
-             start_graph.duration_since(start_mapping));
+             start_graph.duration_since(start_loading));
     println!("graph   time: {:?}", end_graph.duration_since(start_graph));
     g
 

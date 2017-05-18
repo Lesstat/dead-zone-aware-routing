@@ -1,5 +1,6 @@
 mod alg;
 
+use super::grid::Grid;
 
 pub type NodeId = usize;
 pub type OsmNodeId = usize;
@@ -9,12 +10,12 @@ pub type Length = usize;
 pub type Speed = usize;
 pub type Height = usize;
 
-#[derive(HeapSizeOf)]
+#[derive(HeapSizeOf, Default, Debug)]
 pub struct NodeInfo {
     pub osm_id: OsmNodeId,
-    lat: Latitude,
-    long: Longitude,
-    height: Height,
+    pub lat: Latitude,
+    pub long: Longitude,
+    pub height: Height,
 }
 
 impl NodeInfo {
@@ -75,30 +76,27 @@ pub struct Graph {
     node_offsets: Vec<NodeOffset>,
     out_edges: Vec<HalfEdge>,
     in_edges: Vec<HalfEdge>,
+    grid: Grid,
 }
 
 enum OffsetMode {
     In,
     Out,
 }
-impl Graph {
-    pub fn new(node_info: Vec<NodeInfo>, mut edges: Vec<EdgeInfo>) -> Graph {
-        use std::cmp::Ordering;
-        edges.sort_by(|a, b| {
-                          let ord = a.source.cmp(&b.source);
-                          match ord {
-                              Ordering::Equal => a.dest.cmp(&b.dest),
-                              _ => ord,
-                          }
-                      });
 
+impl Graph {
+    pub fn new(mut node_info: Vec<NodeInfo>, mut edges: Vec<EdgeInfo>) -> Graph {
+        let grid = Grid::new(&mut node_info, 10);
+        Graph::map_edges_to_node_index(&node_info, &mut edges);
         let node_count = node_info.len();
         let (node_offset, in_edges, out_edges) = Graph::calc_node_offsets(node_count, edges);
+
         Graph {
             node_info: node_info,
             node_offsets: node_offset,
             out_edges: out_edges,
             in_edges: in_edges,
+            grid: grid,
         }
 
     }
@@ -211,20 +209,33 @@ impl Graph {
     pub fn node_count(&self) -> usize {
         self.node_offsets.len()
     }
+
+    fn map_edges_to_node_index(nodes: &Vec<NodeInfo>, edges: &mut Vec<EdgeInfo>) {
+        use std::collections::hash_map::HashMap;
+        let map: HashMap<OsmNodeId, usize> = nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.osm_id, i))
+            .collect();
+        for e in edges {
+            e.source = map[&e.source];
+            e.dest = map[&e.dest];
+        }
+    }
 }
 
 #[test]
 fn graph_creation() {
-    let g = Graph::new(vec![NodeInfo::new(23, 3.4, 2.3, 12),
-                            NodeInfo::new(27, 4.4, 2.3, 12),
-                            NodeInfo::new(53, 6.4, 1.3, 12),
-                            NodeInfo::new(36, 3.8, 2.4, 12),
-                            NodeInfo::new(78, 9.2, 2.3, 12)],
-                       vec![EdgeInfo::new(0, 1, 1, 1),
-                            EdgeInfo::new(0, 2, 1, 1),
-                            EdgeInfo::new(2, 3, 1, 1),
-                            EdgeInfo::new(0, 3, 1, 1),
-                            EdgeInfo::new(2, 4, 1, 1)]);
+    let g = Graph::new(vec![NodeInfo::new(23, 2.3, 3.3, 12),
+                            NodeInfo::new(27, 2.3, 3.3, 12),
+                            NodeInfo::new(53, 2.3, 3.3, 12),
+                            NodeInfo::new(36, 2.3, 3.3, 12),
+                            NodeInfo::new(78, 2.4, 3.4, 12)],
+                       vec![EdgeInfo::new(23, 27, 1, 1),
+                            EdgeInfo::new(23, 53, 1, 1),
+                            EdgeInfo::new(53, 36, 1, 1),
+                            EdgeInfo::new(23, 36, 1, 1),
+                            EdgeInfo::new(53, 78, 1, 1)]);
     let exp = vec![NodeOffset::new(0, 0),
                    NodeOffset::new(0, 3),
                    NodeOffset::new(1, 3),
@@ -237,11 +248,11 @@ fn graph_creation() {
     assert_eq!(g.outgoing_edges_for(0).len(), 3);
     assert_eq!(g.outgoing_edges_for(2),
                &[HalfEdge {
-                     endpoint: 3,
-                     weight: 1,
-                 },
-                 HalfEdge {
-                     endpoint: 4,
-                     weight: 1,
-                 }]);
+                    endpoint: 3,
+                    weight: 1,
+                },
+                HalfEdge {
+                    endpoint: 4,
+                    weight: 1,
+                }]);
 }

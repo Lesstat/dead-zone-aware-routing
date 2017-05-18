@@ -107,11 +107,11 @@ impl PartialOrd for NodeCost {
 #[test]
 fn count() {
     use super::{EdgeInfo, NodeInfo};
-    let g = Graph::new(vec![NodeInfo::new(1, 2.3, 3.4, 0),
+    let g = Graph::new(vec![NodeInfo::new(0, 2.2, 3.2, 0),
+                            NodeInfo::new(1, 2.3, 3.4, 0),
                             NodeInfo::new(2, 2.3, 3.4, 0),
                             NodeInfo::new(3, 2.3, 3.4, 0),
-                            NodeInfo::new(4, 2.3, 3.4, 0),
-                            NodeInfo::new(5, 2.3, 3.4, 0)],
+                            NodeInfo::new(4, 2.4, 3.9, 0)],
                        vec![EdgeInfo::new(0, 1, 3, 3),
                             EdgeInfo::new(0, 2, 3, 3),
                             EdgeInfo::new(2, 3, 3, 3),
