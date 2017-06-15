@@ -1,6 +1,6 @@
 use super::graph::{NodeInfo, NodeId};
 
-#[derive(Debug,HeapSizeOf)]
+#[derive(Debug, HeapSizeOf)]
 pub struct BoundingBox {
     lat_min: f64,
     lat_max: f64,
@@ -68,9 +68,10 @@ impl Grid {
         let mut current = 0;
         g.offset_array.push(0);
         for (i, n) in nodes.iter().enumerate() {
-            if g.coord_to_index(n.lat, n.long)
-                   .expect("node not in grid area. Something is really wrong") !=
-               current {
+            if g.coord_to_index(n.lat, n.long).expect(
+                "node not in grid area. Something is really wrong",
+            ) != current
+            {
                 current += 1;
                 g.offset_array.push(i);
             }
@@ -105,16 +106,18 @@ fn add_node_to_bounding_box() {
 
 #[test]
 fn converting_coord_to_index() {
-    let mut nodes = vec![NodeInfo {
-                             lat: 3.4,
-                             long: 5.1,
-                             ..Default::default()
-                         },
-                         NodeInfo {
-                             lat: 4.4,
-                             long: 6.1,
-                             ..Default::default()
-                         }];
+    let mut nodes = vec![
+        NodeInfo {
+            lat: 3.4,
+            long: 5.1,
+            ..Default::default()
+        },
+        NodeInfo {
+            lat: 4.4,
+            long: 6.1,
+            ..Default::default()
+        },
+    ];
     let g = Grid::new(&mut nodes, 10);
 
     let index = g.coord_to_index(4.12, 5.73);
@@ -123,16 +126,18 @@ fn converting_coord_to_index() {
 
 #[test]
 fn converting_coord_to_index2() {
-    let mut nodes = vec![NodeInfo {
-                             lat: 3.4,
-                             long: 5.1,
-                             ..Default::default()
-                         },
-                         NodeInfo {
-                             lat: 4.4,
-                             long: 5.6,
-                             ..Default::default()
-                         }];
+    let mut nodes = vec![
+        NodeInfo {
+            lat: 3.4,
+            long: 5.1,
+            ..Default::default()
+        },
+        NodeInfo {
+            lat: 4.4,
+            long: 5.6,
+            ..Default::default()
+        },
+    ];
     let g = Grid::new(&mut nodes, 10);
 
     let index = g.coord_to_index(4.12, 5.38);

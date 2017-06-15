@@ -19,25 +19,31 @@ pub fn load_graph<P: AsRef<Path>>(p: P) -> Graph {
     for (_, obj) in obj_map {
         match obj {
             OsmObj::Node(node) => {
-                nodes.push(NodeInfo::new(node.id.0 as usize,
-                                         (node.decimicro_lat as f64) / 10_000_000.0,
-                                         (node.decimicro_lon as f64) / 10_000_000.0,
-                                         0));
+                nodes.push(NodeInfo::new(
+                    node.id.0 as usize,
+                    (node.decimicro_lat as f64) / 10_000_000.0,
+                    (node.decimicro_lon as f64) / 10_000_000.0,
+                    0,
+                ));
             }
             OsmObj::Way(w) => {
                 let speed = determine_speed(&w);
                 let is_one_way = is_one_way(&w);
                 for (index, node) in w.nodes[0..(w.nodes.len() - 1)].iter().enumerate() {
-                    edges.push(EdgeInfo::new(node.0 as NodeId,
-                                             w.nodes[index + 1].0 as NodeId,
-                                             1,
-                                             speed));
+                    edges.push(EdgeInfo::new(
+                        node.0 as NodeId,
+                        w.nodes[index + 1].0 as NodeId,
+                        1,
+                        speed,
+                    ));
                     if is_one_way {
 
-                        edges.push(EdgeInfo::new(w.nodes[index + 1].0 as NodeId,
-                                                 node.0 as NodeId,
-                                                 1,
-                                                 speed));
+                        edges.push(EdgeInfo::new(
+                            w.nodes[index + 1].0 as NodeId,
+                            node.0 as NodeId,
+                            1,
+                            speed,
+                        ));
                     }
                 }
             }
@@ -48,8 +54,10 @@ pub fn load_graph<P: AsRef<Path>>(p: P) -> Graph {
     let g = Graph::new(nodes, edges);
     let end_graph = Instant::now();
 
-    println!("loading time: {:?}",
-             start_graph.duration_since(start_loading));
+    println!(
+        "loading time: {:?}",
+        start_graph.duration_since(start_loading)
+    );
     println!("graph   time: {:?}", end_graph.duration_since(start_graph));
     g
 

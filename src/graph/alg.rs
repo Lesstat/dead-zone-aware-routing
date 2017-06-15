@@ -86,7 +86,7 @@ impl UnionFind {
     }
 }
 
-#[derive(PartialEq, Eq, Debug )]
+#[derive(PartialEq, Eq, Debug)]
 struct NodeCost {
     node: NodeId,
     cost: usize,
@@ -107,15 +107,21 @@ impl PartialOrd for NodeCost {
 #[test]
 fn count() {
     use super::{EdgeInfo, NodeInfo};
-    let g = Graph::new(vec![NodeInfo::new(0, 2.2, 3.2, 0),
-                            NodeInfo::new(1, 2.3, 3.4, 0),
-                            NodeInfo::new(2, 2.3, 3.4, 0),
-                            NodeInfo::new(3, 2.3, 3.4, 0),
-                            NodeInfo::new(4, 2.4, 3.9, 0)],
-                       vec![EdgeInfo::new(0, 1, 3, 3),
-                            EdgeInfo::new(0, 2, 3, 3),
-                            EdgeInfo::new(2, 3, 3, 3),
-                            EdgeInfo::new(4, 0, 3, 3)]);
+    let g = Graph::new(
+        vec![
+            NodeInfo::new(0, 2.2, 3.2, 0),
+            NodeInfo::new(1, 2.3, 3.4, 0),
+            NodeInfo::new(2, 2.3, 3.4, 0),
+            NodeInfo::new(3, 2.3, 3.4, 0),
+            NodeInfo::new(4, 2.4, 3.9, 0),
+        ],
+        vec![
+            EdgeInfo::new(0, 1, 3, 3),
+            EdgeInfo::new(0, 2, 3, 3),
+            EdgeInfo::new(2, 3, 3, 3),
+            EdgeInfo::new(4, 0, 3, 3),
+        ],
+    );
     assert_eq!(g.count_components(), 1)
 }
 
@@ -134,9 +140,9 @@ impl<'a> Dijkstra<'a> {
         }
         let mut heap = BinaryHeap::new();
         heap.push(NodeCost {
-                      node: source,
-                      cost: 0,
-                  });
+            node: source,
+            cost: 0,
+        });
 
         while let Some(NodeCost { node, cost }) = heap.pop() {
 
