@@ -35,8 +35,6 @@ impl RadiusIter {
     fn new(center: isize, grid_size: isize) -> RadiusIter {
         let center = Point::from_index(center, grid_size);
         let next_point = Some(center.clone());
-        println!("center: {:?}", center);
-
         RadiusIter {
             center,
             grid_size,
@@ -55,12 +53,7 @@ impl Iterator for RadiusIter {
         if cur_point.x - self.center.x == self.radius &&
             cur_point.y - self.center.y == self.radius
         {
-            self.radius += 1;
-            next = Point {
-                x: self.center.x - self.radius,
-                y: self.center.y - self.radius,
-                grid_size: self.grid_size,
-            }
+            next = self.increase_radius_calculate_starting_point()
         } else {
             next = Point {
                 x: cur_point.x + 1,
@@ -81,10 +74,22 @@ impl Iterator for RadiusIter {
 }
 
 impl RadiusIter {
-    fn check_for_line_wrap(&self, next: &mut Point) {
-        if (next.x - self.center.x).abs() > self.radius {
+    fn check_for_line_wrap(&mut self, next: &mut Point) {
+        if (next.x - self.center.x).abs() > self.radius || next.x >= self.grid_size {
             next.x = self.center.x - self.radius;
             next.y += 1;
+            if (next.y - self.center.y).abs() > self.radius || next.y >= self.grid_size {
+                *next = self.increase_radius_calculate_starting_point();
+            }
+        }
+    }
+
+    fn increase_radius_calculate_starting_point(&mut self) -> Point {
+        self.radius += 1;
+        Point {
+            x: self.center.x - self.radius,
+            y: self.center.y - self.radius,
+            grid_size: self.grid_size,
         }
     }
 }
@@ -131,6 +136,29 @@ mod tests {
         assert_eq!(32, r.next().unwrap());
         assert_eq!(33, r.next().unwrap());
         assert_eq!(34, r.next().unwrap());
+    }
+
+    #[test]
+    fn leave_out_indices_for_edge_cells_x_direction() {
+        let mut r = RadiusIter::new(17, 6);
+        assert_eq!(17, r.next().unwrap());
+        assert_eq!(10, r.next().unwrap());
+        assert_eq!(11, r.next().unwrap());
+        assert_eq!(16, r.next().unwrap());
+        assert_eq!(22, r.next().unwrap());
+        assert_eq!(23, r.next().unwrap());
+        assert_eq!(3, r.next().unwrap());
+    }
+
+    #[test]
+    fn leave_out_indices_for_edge_cells_y_direction() {
+        let mut r = RadiusIter::new(35, 6);
+        assert_eq!(35, r.next().unwrap());
+        assert_eq!(28, r.next().unwrap());
+        assert_eq!(29, r.next().unwrap());
+        assert_eq!(34, r.next().unwrap());
+        assert_eq!(21, r.next().unwrap());
+        assert_eq!(22, r.next().unwrap());
     }
 
 }
