@@ -1,5 +1,7 @@
 use super::graph::{NodeInfo, NodeId};
 
+mod radius;
+
 #[derive(Debug, HeapSizeOf)]
 pub struct BoundingBox {
     lat_min: f64,
@@ -71,8 +73,6 @@ impl Grid {
                 "node not in grid area. Something is really wrong",
             );
             if new_index != current {
-                println!("{}", new_index);
-
                 for offset in &mut g.offset_array[current + 1..new_index + 1] {
                     *offset = i;
                 }
@@ -115,9 +115,7 @@ impl Grid {
     ) -> Result<&'a NodeInfo, ()> {
         use std::{f64, usize};
 
-        println!("{:?}", self.offset_array);
         let index = self.coord_to_index(lat, long)?;
-        println!("index {}", index);
 
         let start = self.offset_array[index];
         let end = self.offset_array[index + 1];
@@ -131,12 +129,8 @@ impl Grid {
             if dist < min_dist {
                 min_dist = dist;
                 min_index = start + i;
-
             }
-            println!("start {}, i {}", start, i);
-
         }
-
         if min_index < usize::MAX {
             Ok(&nodes[min_index])
         } else {
@@ -233,5 +227,17 @@ fn nearest_neighbor_2_points_other_point() {
     ];
     let g = Grid::new(&mut nodes, 10);
     let n = g.nearest_neighbor(20.5, 40.1, &nodes).unwrap();
+    assert_eq!(&nodes[1], n);
+}
+
+#[test]
+#[ignore]
+fn nearest_neighbor_2_points_different_cell() {
+    let mut nodes = vec![
+        NodeInfo::new(0, 10.2, 30.4, 0),
+        NodeInfo::new(1, 20.5, 40.1, 0),
+    ];
+    let g = Grid::new(&mut nodes, 10);
+    let n = g.nearest_neighbor(19.0, 38.0, &nodes).unwrap();
     assert_eq!(&nodes[1], n);
 }
