@@ -60,11 +60,18 @@ impl Iterator for RadiusIter {
                 ..cur_point
             };
             self.check_for_line_wrap(&mut next);
+
+            let mut counter = 0;
             while !((next.x - self.center.x).abs() == self.radius ||
-                        (next.y - self.center.y).abs() == self.radius)
+                        (next.y - self.center.y).abs() == self.radius) ||
+                (next.x < 0 || next.y < 0)
             {
+                if counter > (self.radius + 2).pow(2) {
+                    return None;
+                }
                 next.x += 1;
                 self.check_for_line_wrap(&mut next);
+                counter += 1;
             }
         }
 
@@ -159,6 +166,21 @@ mod tests {
         assert_eq!(34, r.next().unwrap());
         assert_eq!(21, r.next().unwrap());
         assert_eq!(22, r.next().unwrap());
+    }
+
+    #[test]
+    fn stop_iteration_after_radius_gets_to_big() {
+        let mut r = RadiusIter::new(4, 3);
+        assert_eq!(4, r.next().unwrap());
+        assert_eq!(0, r.next().unwrap());
+        assert_eq!(1, r.next().unwrap());
+        assert_eq!(2, r.next().unwrap());
+        assert_eq!(3, r.next().unwrap());
+        assert_eq!(5, r.next().unwrap());
+        assert_eq!(6, r.next().unwrap());
+        assert_eq!(7, r.next().unwrap());
+        assert_eq!(8, r.next().unwrap());
+        assert_eq!(None, r.next());
     }
 
 }
