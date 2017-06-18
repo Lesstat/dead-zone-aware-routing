@@ -29,6 +29,13 @@ impl NodeInfo {
     }
 }
 
+impl PartialEq for NodeInfo {
+    fn eq(&self, other: &NodeInfo) -> bool {
+        self.osm_id == other.osm_id
+    }
+}
+impl Eq for NodeInfo {}
+
 #[derive(PartialEq, Debug, HeapSizeOf)]
 pub struct EdgeInfo {
     pub source: NodeId,

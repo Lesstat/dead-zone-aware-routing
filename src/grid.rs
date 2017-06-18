@@ -107,9 +107,41 @@ impl Grid {
         Ok(y * (self.side_length) + x)
 
     }
+    pub fn nearest_neighbor<'a>(
+        &self,
+        lat: f64,
+        long: f64,
+        nodes: &'a [NodeInfo],
+    ) -> Result<&'a NodeInfo, ()> {
+        use std::{f64, usize};
 
-        Ok(y * self.side_length + x)
+        println!("{:?}", self.offset_array);
+        let index = self.coord_to_index(lat, long)?;
+        println!("index {}", index);
 
+        let start = self.offset_array[index];
+        let end = self.offset_array[index + 1];
+
+
+        let mut min_dist = f64::INFINITY;
+        let mut min_index = usize::MAX;
+
+        for (i, n) in nodes[start..end].iter().enumerate() {
+            let dist = (lat - n.lat).powi(2) + (long - n.long).powi(2);
+            if dist < min_dist {
+                min_dist = dist;
+                min_index = start + i;
+
+            }
+            println!("start {}, i {}", start, i);
+
+        }
+
+        if min_index < usize::MAX {
+            Ok(&nodes[min_index])
+        } else {
+            Err(())
+        }
     }
 }
 
@@ -182,3 +214,24 @@ fn converting_coord_to_index_edge_points() {
     assert_eq!(index.unwrap(), 99)
 }
 
+#[test]
+fn nearest_neighbor_2_points() {
+    let mut nodes = vec![
+        NodeInfo::new(0, 10.2, 30.4, 0),
+        NodeInfo::new(1, 20.5, 40.1, 0),
+    ];
+    let g = Grid::new(&mut nodes, 10);
+    let n = g.nearest_neighbor(10.3, 30.5, &nodes).unwrap();
+    assert_eq!(&nodes[0], n);
+}
+
+#[test]
+fn nearest_neighbor_2_points_other_point() {
+    let mut nodes = vec![
+        NodeInfo::new(0, 10.2, 30.4, 0),
+        NodeInfo::new(1, 20.5, 40.1, 0),
+    ];
+    let g = Grid::new(&mut nodes, 10);
+    let n = g.nearest_neighbor(20.5, 40.1, &nodes).unwrap();
+    assert_eq!(&nodes[1], n);
+}
