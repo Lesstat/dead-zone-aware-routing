@@ -43,7 +43,7 @@ impl BoundingBox {
 }
 
 
-#[derive(HeapSizeOf)]
+#[derive(HeapSizeOf, Debug)]
 pub struct Grid {
     b_box: BoundingBox,
     side_length: usize,
@@ -61,21 +61,30 @@ impl Grid {
         let mut g = Grid {
             b_box: b_box,
             side_length: size,
-            offset_array: Vec::with_capacity(size * size),
+            offset_array: vec![0; size * size + 1],
         };
 
         nodes.sort_by_key(|n| g.coord_to_index(n.lat, n.long));
         let mut current = 0;
-        g.offset_array.push(0);
         for (i, n) in nodes.iter().enumerate() {
-            if g.coord_to_index(n.lat, n.long).expect(
+            let new_index = g.coord_to_index(n.lat, n.long).expect(
                 "node not in grid area. Something is really wrong",
-            ) != current
-            {
-                current += 1;
-                g.offset_array.push(i);
+            );
+            if new_index != current {
+                println!("{}", new_index);
+
+                for offset in &mut g.offset_array[current + 1..new_index + 1] {
+                    *offset = i;
+                }
+                current = new_index;
             }
         }
+        for offset in &mut g.offset_array[current + 1..] {
+            *offset = nodes.len();
+        }
+        let last_offset = g.offset_array.len() - 1;
+        g.offset_array[last_offset] = nodes.len();
+
         g
     }
 
@@ -87,8 +96,17 @@ impl Grid {
         let cell_height = (self.b_box.long_max - self.b_box.long_min) / self.side_length as f64;
         let lat_dif = lat - self.b_box.lat_min;
         let long_dif = long - self.b_box.long_min;
-        let x = (lat_dif / cell_width) as usize;
-        let y = (long_dif / cell_height) as usize;
+        let mut x = (lat_dif / cell_width) as usize;
+        let mut y = (long_dif / cell_height) as usize;
+        if x == self.side_length {
+            x -= 1;
+        }
+        if y == self.side_length {
+            y -= 1;
+        }
+        Ok(y * (self.side_length) + x)
+
+    }
 
         Ok(y * self.side_length + x)
 
@@ -143,3 +161,24 @@ fn converting_coord_to_index2() {
     let index = g.coord_to_index(4.12, 5.38);
     assert_eq!(index.unwrap(), 57)
 }
+
+#[test]
+fn converting_coord_to_index_edge_points() {
+    let mut nodes = vec![
+        NodeInfo {
+            lat: 3.4,
+            long: 5.1,
+            ..Default::default()
+        },
+        NodeInfo {
+            lat: 4.4,
+            long: 5.6,
+            ..Default::default()
+        },
+    ];
+    let g = Grid::new(&mut nodes, 10);
+
+    let index = g.coord_to_index(4.4, 5.6);
+    assert_eq!(index.unwrap(), 99)
+}
+
