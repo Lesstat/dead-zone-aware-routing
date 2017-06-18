@@ -27,7 +27,7 @@ impl Point {
 pub struct RadiusIter {
     center: Point,
     grid_size: isize,
-    cur_radius: isize,
+    radius: isize,
     next_point: Option<Point>,
 }
 
@@ -40,7 +40,7 @@ impl RadiusIter {
         RadiusIter {
             center,
             grid_size,
-            cur_radius: 0,
+            radius: 0,
             next_point,
         }
     }
@@ -51,29 +51,31 @@ impl Iterator for RadiusIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next;
-        if self.cur_radius == 0 {
-            self.cur_radius += 1;
+        let cur_point = self.next_point.clone().unwrap();
+        if cur_point.x - self.center.x == self.radius &&
+            cur_point.y - self.center.y == self.radius
+        {
+            self.radius += 1;
             next = Point {
-                x: self.center.x - self.cur_radius,
-                y: self.center.y - self.cur_radius,
+                x: self.center.x - self.radius,
+                y: self.center.y - self.radius,
                 grid_size: self.grid_size,
             }
         } else {
-            let cur_point = self.next_point.clone().unwrap();
             next = Point {
                 x: cur_point.x + 1,
                 ..cur_point
             };
-            if (next.x - self.center.x).abs() > self.cur_radius {
-                next.x = self.center.x - self.cur_radius;
+            if (next.x - self.center.x).abs() > self.radius {
+                next.x = self.center.x - self.radius;
                 next.y += 1;
             }
-            while !((next.x - self.center.x).abs() == self.cur_radius ||
-                        (next.y - self.center.y).abs() == self.cur_radius)
+            while !((next.x - self.center.x).abs() == self.radius ||
+                        (next.y - self.center.y).abs() == self.radius)
             {
                 next.x += 1;
-                if (next.x - self.center.x).abs() > self.cur_radius {
-                    next.x = self.center.x - self.cur_radius;
+                if (next.x - self.center.x).abs() > self.radius {
+                    next.x = self.center.x - self.radius;
                     next.y += 1;
                 }
             }
@@ -112,6 +114,21 @@ mod tests {
         assert_eq!(26, r.next().unwrap());
         assert_eq!(27, r.next().unwrap());
         assert_eq!(6, r.next().unwrap());
+        assert_eq!(7, r.next().unwrap());
+        assert_eq!(8, r.next().unwrap());
+        assert_eq!(9, r.next().unwrap());
+        assert_eq!(10, r.next().unwrap());
+        assert_eq!(12, r.next().unwrap());
+        assert_eq!(16, r.next().unwrap());
+        assert_eq!(18, r.next().unwrap());
+        assert_eq!(22, r.next().unwrap());
+        assert_eq!(24, r.next().unwrap());
+        assert_eq!(28, r.next().unwrap());
+        assert_eq!(30, r.next().unwrap());
+        assert_eq!(31, r.next().unwrap());
+        assert_eq!(32, r.next().unwrap());
+        assert_eq!(33, r.next().unwrap());
+        assert_eq!(34, r.next().unwrap());
     }
 
 }
