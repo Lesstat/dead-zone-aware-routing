@@ -51,7 +51,7 @@ impl Iterator for RadiusIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next;
-        let cur_point = self.next_point.clone().unwrap();
+        let cur_point = self.next_point.take().unwrap();
         if cur_point.x - self.center.x == self.radius &&
             cur_point.y - self.center.y == self.radius
         {
@@ -66,24 +66,26 @@ impl Iterator for RadiusIter {
                 x: cur_point.x + 1,
                 ..cur_point
             };
-            if (next.x - self.center.x).abs() > self.radius {
-                next.x = self.center.x - self.radius;
-                next.y += 1;
-            }
+            self.check_for_line_wrap(&mut next);
             while !((next.x - self.center.x).abs() == self.radius ||
                         (next.y - self.center.y).abs() == self.radius)
             {
                 next.x += 1;
-                if (next.x - self.center.x).abs() > self.radius {
-                    next.x = self.center.x - self.radius;
-                    next.y += 1;
-                }
+                self.check_for_line_wrap(&mut next);
             }
         }
 
-        let mut next = Some(next);
-        ::std::mem::swap(&mut next, &mut self.next_point);
-        next.map(|p| p.to_index())
+        self.next_point = Some(next);
+        Some(cur_point.to_index())
+    }
+}
+
+impl RadiusIter {
+    fn check_for_line_wrap(&self, next: &mut Point) {
+        if (next.x - self.center.x).abs() > self.radius {
+            next.x = self.center.x - self.radius;
+            next.y += 1;
+        }
     }
 }
 
