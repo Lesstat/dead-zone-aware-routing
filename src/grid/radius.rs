@@ -32,15 +32,16 @@ pub struct RadiusIter {
 }
 
 impl RadiusIter {
-    pub fn new(center: isize, grid_size: isize) -> RadiusIter {
+    pub fn new(center: isize, grid_size: isize, radius: isize) -> RadiusIter {
         let center = Point::from_index(center, grid_size);
-        let next_point = Some(center.clone());
-        RadiusIter {
+        let mut rad = RadiusIter {
             center,
             grid_size,
-            radius: 0,
-            next_point,
-        }
+            radius,
+            next_point: None,
+        };
+        rad.next_point = RadiusIter::calculate_starting_point(&rad).ok();
+        rad
     }
 }
 
@@ -49,21 +50,26 @@ impl Iterator for RadiusIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next;
-        let cur_point = self.next_point.take().unwrap();
+        let cur_point = match self.next_point.take() {
+            Some(p) => p,
+            None => return None,
+        };
+
         if cur_point.x - self.center.x == self.radius &&
             cur_point.y - self.center.y == self.radius
         {
-            next = match self.increase_radius_calculate_starting_point() {
-                Ok(p) => p,
-                Err(()) => return None,
-            }
+            self.next_point = None;
+            return Some(cur_point.to_index() as usize);
+
         } else {
             next = Point {
                 x: cur_point.x + 1,
                 ..cur_point
             };
+
             if self.check_for_line_wrap(&mut next).is_err() {
-                return None;
+                self.next_point = None;
+                return Some(cur_point.to_index() as usize);
             };
 
             while !((next.x - self.center.x).abs() == self.radius ||
@@ -72,9 +78,11 @@ impl Iterator for RadiusIter {
             {
                 next.x += 1;
                 if self.check_for_line_wrap(&mut next).is_err() {
-                    return None;
+                    self.next_point = None;
+                    return Some(cur_point.to_index() as usize);
                 };
             }
+
         }
 
         self.next_point = Some(next);
@@ -85,34 +93,35 @@ impl Iterator for RadiusIter {
 impl RadiusIter {
     fn check_for_line_wrap(&mut self, next: &mut Point) -> Result<(), ()> {
         if (next.x - self.center.x).abs() > self.radius || next.x >= self.grid_size {
+
             next.x = self.center.x - self.radius;
             next.y += 1;
+
             if (next.y - self.center.y).abs() > self.radius || next.y >= self.grid_size {
-                *next = self.increase_radius_calculate_starting_point()?;
+
+                return Err(());
             }
         }
         Ok(())
     }
 
-    fn increase_radius_calculate_starting_point(&mut self) -> Result<Point, ()> {
-        self.radius += 1;
-        let mut x = self.center.x - self.radius;
+    fn calculate_starting_point(rad_iter: &RadiusIter) -> Result<Point, ()> {
+        let mut x = rad_iter.center.x - rad_iter.radius;
         if x < 0 {
-            x = self.center.x + self.radius;
-            if x > self.grid_size {
+            x = rad_iter.center.x + rad_iter.radius;
+            if x >= rad_iter.grid_size {
                 return Err(());
             }
         }
-        let mut y = self.center.y - self.radius;
+        let mut y = rad_iter.center.y - rad_iter.radius;
         if y < 0 {
             y = 0;
         }
         let p = Point {
             x,
             y,
-            grid_size: self.grid_size,
+            grid_size: rad_iter.grid_size,
         };
-        println!("p {:?}", p);
         Ok(p)
 
     }
@@ -126,92 +135,75 @@ mod tests {
 
     #[test]
     fn start_with_center() {
-        let mut r = RadiusIter::new(20, 6);
+        let mut r = RadiusIter::new(20, 6, 0);
         assert_eq!(20, r.next().unwrap());
     }
 
     #[test]
     fn circle_around_center() {
 
-        let mut r = RadiusIter::new(20, 6);
-        r.next();
+        let mut r = RadiusIter::new(20, 6, 1);
 
-        assert_eq!(13, r.next().unwrap());
-        assert_eq!(14, r.next().unwrap());
-        assert_eq!(15, r.next().unwrap());
-        assert_eq!(19, r.next().unwrap());
-        assert_eq!(21, r.next().unwrap());
-        assert_eq!(25, r.next().unwrap());
-        assert_eq!(26, r.next().unwrap());
-        assert_eq!(27, r.next().unwrap());
-        assert_eq!(6, r.next().unwrap());
-        assert_eq!(7, r.next().unwrap());
-        assert_eq!(8, r.next().unwrap());
-        assert_eq!(9, r.next().unwrap());
-        assert_eq!(10, r.next().unwrap());
-        assert_eq!(12, r.next().unwrap());
-        assert_eq!(16, r.next().unwrap());
-        assert_eq!(18, r.next().unwrap());
-        assert_eq!(22, r.next().unwrap());
-        assert_eq!(24, r.next().unwrap());
-        assert_eq!(28, r.next().unwrap());
-        assert_eq!(30, r.next().unwrap());
-        assert_eq!(31, r.next().unwrap());
-        assert_eq!(32, r.next().unwrap());
-        assert_eq!(33, r.next().unwrap());
-        assert_eq!(34, r.next().unwrap());
+        assert_eq!(Some(13), r.next());
+        assert_eq!(Some(14), r.next());
+        assert_eq!(Some(15), r.next());
+        assert_eq!(Some(19), r.next());
+        assert_eq!(Some(21), r.next());
+        assert_eq!(Some(25), r.next());
+        assert_eq!(Some(26), r.next());
+        assert_eq!(Some(27), r.next());
+        assert_eq!(None, r.next());
+        r = RadiusIter::new(20, 6, 2);
+        assert_eq!(Some(6), r.next());
+        assert_eq!(Some(7), r.next());
+        assert_eq!(Some(8), r.next());
+        assert_eq!(Some(9), r.next());
+        assert_eq!(Some(10), r.next());
+        assert_eq!(Some(12), r.next());
+        assert_eq!(Some(16), r.next());
+        assert_eq!(Some(18), r.next());
+        assert_eq!(Some(22), r.next());
+        assert_eq!(Some(24), r.next());
+        assert_eq!(Some(28), r.next());
+        assert_eq!(Some(30), r.next());
+        assert_eq!(Some(31), r.next());
+        assert_eq!(Some(32), r.next());
+        assert_eq!(Some(33), r.next());
+        assert_eq!(Some(34), r.next());
     }
 
     #[test]
     fn leave_out_indices_for_edge_cells_x_direction() {
-        let mut r = RadiusIter::new(17, 6);
-        assert_eq!(17, r.next().unwrap());
-        assert_eq!(10, r.next().unwrap());
-        assert_eq!(11, r.next().unwrap());
-        assert_eq!(16, r.next().unwrap());
-        assert_eq!(22, r.next().unwrap());
-        assert_eq!(23, r.next().unwrap());
-        assert_eq!(3, r.next().unwrap());
+        let mut r = RadiusIter::new(17, 6, 1);
+        assert_eq!(Some(10), r.next());
+        assert_eq!(Some(11), r.next());
+        assert_eq!(Some(16), r.next());
+        assert_eq!(Some(22), r.next());
+        assert_eq!(Some(23), r.next());
     }
 
     #[test]
     fn leave_out_indices_for_edge_cells_y_direction() {
-        let mut r = RadiusIter::new(35, 6);
-        assert_eq!(35, r.next().unwrap());
+        let mut r = RadiusIter::new(35, 6, 1);
         assert_eq!(28, r.next().unwrap());
         assert_eq!(29, r.next().unwrap());
         assert_eq!(34, r.next().unwrap());
-        assert_eq!(21, r.next().unwrap());
-        assert_eq!(22, r.next().unwrap());
-    }
-
-    #[test]
-    fn stop_iteration_after_radius_gets_to_big() {
-        let mut r = RadiusIter::new(4, 3);
-        assert_eq!(4, r.next().unwrap());
-        assert_eq!(0, r.next().unwrap());
-        assert_eq!(1, r.next().unwrap());
-        assert_eq!(2, r.next().unwrap());
-        assert_eq!(3, r.next().unwrap());
-        assert_eq!(5, r.next().unwrap());
-        assert_eq!(6, r.next().unwrap());
-        assert_eq!(7, r.next().unwrap());
-        assert_eq!(8, r.next().unwrap());
         assert_eq!(None, r.next());
     }
 
     #[test]
     fn hop_over_negative_cell_indices() {
-        let mut r = RadiusIter::new(0, 3);
-        assert_eq!(0, r.next().unwrap());
+        let mut r = RadiusIter::new(0, 3, 1);
         assert_eq!(1, r.next().unwrap());
         assert_eq!(3, r.next().unwrap());
         assert_eq!(4, r.next().unwrap());
+        r = RadiusIter::new(0, 3, 2);
         assert_eq!(2, r.next().unwrap());
         assert_eq!(5, r.next().unwrap());
         assert_eq!(6, r.next().unwrap());
         assert_eq!(7, r.next().unwrap());
         assert_eq!(8, r.next().unwrap());
+        r = RadiusIter::new(0, 3, 3);
         assert_eq!(None, r.next());
     }
 

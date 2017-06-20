@@ -115,20 +115,34 @@ impl Grid {
     ) -> Result<&'a NodeInfo, ()> {
         use std::{f64, usize};
 
+        let cell_width = (self.b_box.lat_max - self.b_box.lat_min) / self.side_length as f64;
+        let cell_height = (self.b_box.long_max - self.b_box.long_min) / self.side_length as f64;
+        let cell_measure = cell_width.min(cell_height);
+        let mut radius = 0;
+
         let index = self.coord_to_index(lat, long)?;
-
-        let start = self.offset_array[index];
-        let end = self.offset_array[index + 1];
-
-
         let mut min_dist = f64::INFINITY;
         let mut min_index = usize::MAX;
+        loop {
+            let max_min_dist = (radius as f64 - 1.0) * cell_measure;
+            if max_min_dist > min_dist {
+                break;
+            }
+            let radius_iter =
+                radius::RadiusIter::new(index as isize, self.side_length as isize, radius);
+            radius += 1;
+            for index in radius_iter {
+                let start = self.offset_array[index];
+                let end = self.offset_array[index + 1];
 
-        for (i, n) in nodes[start..end].iter().enumerate() {
-            let dist = (lat - n.lat).powi(2) + (long - n.long).powi(2);
-            if dist < min_dist {
-                min_dist = dist;
-                min_index = start + i;
+                for (i, n) in nodes[start..end].iter().enumerate() {
+                    let dist = (lat - n.lat).powi(2) + (long - n.long).powi(2);
+                    if dist < min_dist {
+                        min_dist = dist;
+                        min_index = start + i;
+                    }
+                }
+
             }
         }
         if min_index < usize::MAX {
@@ -231,7 +245,6 @@ fn nearest_neighbor_2_points_other_point() {
 }
 
 #[test]
-#[ignore]
 fn nearest_neighbor_2_points_different_cell() {
     let mut nodes = vec![
         NodeInfo::new(0, 10.2, 30.4, 0),
