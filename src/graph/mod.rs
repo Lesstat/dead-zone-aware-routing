@@ -10,7 +10,7 @@ pub type Length = usize;
 pub type Speed = usize;
 pub type Height = usize;
 
-#[derive(HeapSizeOf, Default, Debug)]
+#[derive(HeapSizeOf, Default, Debug, Clone)]
 pub struct NodeInfo {
     pub osm_id: OsmNodeId,
     pub lat: Latitude,
@@ -231,6 +231,10 @@ impl Graph {
             e.source = map[&e.source];
             e.dest = map[&e.dest];
         }
+    }
+
+    pub fn next_node_to(&self, lat: f64, long: f64) -> Option<&NodeInfo> {
+        self.grid.nearest_neighbor(lat, long, &self.node_info).ok()
     }
 }
 

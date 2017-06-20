@@ -14,7 +14,7 @@ fn main() {
     println!("Size of graph: {} MB", g.heap_size_of_children() / 1048576);
 
     rocket::ignite()
-        .mount("/", routes![fapra::web::route])
+        .mount("/", routes![fapra::web::route, fapra::web::next_node_to])
         .manage(g)
         .launch();
 }
