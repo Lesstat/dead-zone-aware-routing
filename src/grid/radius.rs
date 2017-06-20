@@ -32,7 +32,7 @@ pub struct RadiusIter {
 }
 
 impl RadiusIter {
-    fn new(center: isize, grid_size: isize) -> RadiusIter {
+    pub fn new(center: isize, grid_size: isize) -> RadiusIter {
         let center = Point::from_index(center, grid_size);
         let next_point = Some(center.clone());
         RadiusIter {
@@ -45,7 +45,7 @@ impl RadiusIter {
 }
 
 impl Iterator for RadiusIter {
-    type Item = isize;
+    type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next;
@@ -53,51 +53,68 @@ impl Iterator for RadiusIter {
         if cur_point.x - self.center.x == self.radius &&
             cur_point.y - self.center.y == self.radius
         {
-            next = self.increase_radius_calculate_starting_point()
+            next = match self.increase_radius_calculate_starting_point() {
+                Ok(p) => p,
+                Err(()) => return None,
+            }
         } else {
             next = Point {
                 x: cur_point.x + 1,
                 ..cur_point
             };
-            self.check_for_line_wrap(&mut next);
+            if self.check_for_line_wrap(&mut next).is_err() {
+                return None;
+            };
 
-            let mut counter = 0;
             while !((next.x - self.center.x).abs() == self.radius ||
                         (next.y - self.center.y).abs() == self.radius) ||
                 (next.x < 0 || next.y < 0)
             {
-                if counter > (self.radius + 2).pow(2) {
-                    return None;
-                }
                 next.x += 1;
-                self.check_for_line_wrap(&mut next);
-                counter += 1;
+                if self.check_for_line_wrap(&mut next).is_err() {
+                    return None;
+                };
             }
         }
 
         self.next_point = Some(next);
-        Some(cur_point.to_index())
+        Some(cur_point.to_index() as usize)
     }
 }
 
 impl RadiusIter {
-    fn check_for_line_wrap(&mut self, next: &mut Point) {
+    fn check_for_line_wrap(&mut self, next: &mut Point) -> Result<(), ()> {
         if (next.x - self.center.x).abs() > self.radius || next.x >= self.grid_size {
             next.x = self.center.x - self.radius;
             next.y += 1;
             if (next.y - self.center.y).abs() > self.radius || next.y >= self.grid_size {
-                *next = self.increase_radius_calculate_starting_point();
+                *next = self.increase_radius_calculate_starting_point()?;
             }
         }
+        Ok(())
     }
 
-    fn increase_radius_calculate_starting_point(&mut self) -> Point {
+    fn increase_radius_calculate_starting_point(&mut self) -> Result<Point, ()> {
         self.radius += 1;
-        Point {
-            x: self.center.x - self.radius,
-            y: self.center.y - self.radius,
-            grid_size: self.grid_size,
+        let mut x = self.center.x - self.radius;
+        if x < 0 {
+            x = self.center.x + self.radius;
+            if x > self.grid_size {
+                return Err(());
+            }
         }
+        let mut y = self.center.y - self.radius;
+        if y < 0 {
+            y = 0;
+        }
+        let p = Point {
+            x,
+            y,
+            grid_size: self.grid_size,
+        };
+        println!("p {:?}", p);
+        Ok(p)
+
     }
 }
 
@@ -182,5 +199,21 @@ mod tests {
         assert_eq!(8, r.next().unwrap());
         assert_eq!(None, r.next());
     }
+
+    #[test]
+    fn hop_over_negative_cell_indices() {
+        let mut r = RadiusIter::new(0, 3);
+        assert_eq!(0, r.next().unwrap());
+        assert_eq!(1, r.next().unwrap());
+        assert_eq!(3, r.next().unwrap());
+        assert_eq!(4, r.next().unwrap());
+        assert_eq!(2, r.next().unwrap());
+        assert_eq!(5, r.next().unwrap());
+        assert_eq!(6, r.next().unwrap());
+        assert_eq!(7, r.next().unwrap());
+        assert_eq!(8, r.next().unwrap());
+        assert_eq!(None, r.next());
+    }
+
 
 }
