@@ -17,7 +17,7 @@ pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
     let dist = d.distance(q.s, q.t);
     let dist = match dist {
         Some(d) => d,
-        None => return JSON(format!("{{ \"distance\": 0, \"route\": [] }}")),
+        None => return JSON("{{ \"distance\": 0, \"route\": [] }}".to_string()),
     };
     let geometry = Geometry::new(Value::LineString(
         dist.node_seq
@@ -107,8 +107,9 @@ impl<'f> FromForm<'f> for NNQuery {
     /// Parses an instance of `Self` from the form items or returns an `Error`
     /// if one cannot be parsed.
     fn from_form_items(form_items: &mut FormItems<'f>) -> Result<Self, Self::Error> {
-        let mut lat: f64 = ::std::f64::MAX;
-        let mut long: f64 = ::std::f64::MAX;
+        use std::f64;
+        let mut lat: f64 = f64::MAX;
+        let mut long: f64 = f64::MAX;
         for item in form_items {
             if item.0 == "lat" {
                 lat = item.1.parse()?;
@@ -117,10 +118,10 @@ impl<'f> FromForm<'f> for NNQuery {
                 long = item.1.parse()?;
             }
         }
-        if lat == ::std::f64::MAX {
+        if f64::MAX - lat < f64::EPSILON {
             return Err(ParseQueryErr::ItemNotPresen("No parameter \"lat\" present"));
         }
-        if long == ::std::f64::MAX {
+        if f64::MAX - long < f64::EPSILON {
             return Err(ParseQueryErr::ItemNotPresen(
                 "No parameter \"long\" present",
             ));
