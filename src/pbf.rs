@@ -36,7 +36,7 @@ pub fn load_graph<P: AsRef<Path>>(p: P) -> Graph {
                         1.1, // TODO: calculate Length
                         speed,
                     ));
-                    if is_one_way {
+                    if !is_one_way {
 
                         edges.push(EdgeInfo::new(
                             w.nodes[index + 1].0 as NodeId,
