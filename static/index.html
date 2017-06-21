@@ -53,21 +53,12 @@
        
        var xmlhttp = new XMLHttpRequest();
        
-       xmlhttp.onreadystatechange = function() {
-	 if (xmlhttp.readyState == XMLHttpRequest.DONE ) {
-	   if (xmlhttp.status == 200) {
+       xmlhttp.onload = function() {
+	 if (xmlhttp.status == 200) {
 	     document.getElementById(id).innerHTML = xmlhttp.responseText;
 	     calc_dist();
 	   }
-	   else if (xmlhttp.status == 400) {
-	     alert('There was an error 400');
-	   }
-	   else {
-	     alert('something else other than 200 was returned');
-	   }
-	 }
        };
-       
        xmlhttp.open("GET", "node_at?lat="+ latlng.lat  + "&long=" + latlng.lng, true);
        xmlhttp.send();
      }
@@ -76,23 +67,20 @@
        var xmlhttp = new XMLHttpRequest();
        
        xmlhttp.responseType = 'json';
-       xmlhttp.onreadystatechange = function() {
-	 if (xmlhttp.readyState == XMLHttpRequest.DONE ) {
-	   if (xmlhttp.status == 200) {
+       xmlhttp.onload = function() {
+	 if (xmlhttp.status == 200) {
 	     var myStyle = {
 	       "color": "#ff7800",
 	       "weight": 5,
 	       "opacity": 0.65
 	     };
-
 	     document.getElementById("dist").innerHTML = xmlhttp.response.distance;
 	     map.removeLayer(geoJson);
 	     geoJson = L.geoJSON(xmlhttp.response.route.geometry, { style: myStyle }).addTo(map);
 	   }
 	   else {
-	     document.getElementById("dist").innerHTML = 0;
+	     document.getElementById("dist").innerHTML = "Unkown";
 	   }
-	 }
        };
        var s = document.getElementById("start").innerHTML;
        var t = document.getElementById("end").innerHTML;
