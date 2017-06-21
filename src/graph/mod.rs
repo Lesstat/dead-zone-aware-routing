@@ -95,7 +95,7 @@ enum OffsetMode {
 
 impl Graph {
     pub fn new(mut node_info: Vec<NodeInfo>, mut edges: Vec<EdgeInfo>) -> Graph {
-        let grid = Grid::new(&mut node_info, 10);
+        let grid = Grid::new(&mut node_info, 100);
         Graph::map_edges_to_node_index(&node_info, &mut edges);
         let node_count = node_info.len();
         let (node_offset, in_edges, out_edges) = Graph::calc_node_offsets(node_count, edges);
