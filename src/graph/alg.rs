@@ -2,7 +2,9 @@ use super::{Graph, NodeId, Length};
 
 use std::time::Instant;
 use std::cmp::Ordering;
-use std::usize;
+use std::f64;
+
+use ordered_float::OrderedFloat;
 
 impl Graph {
     pub fn count_components(&self) -> usize {
@@ -33,7 +35,7 @@ impl Graph {
 
     pub fn dijkstra(&self) -> Dijkstra {
         Dijkstra {
-            dist: vec![usize::MAX; self.node_count()],
+            dist: vec![f64::MAX.into(); self.node_count()],
             touched: Default::default(),
             graph: self,
         }
@@ -89,18 +91,18 @@ impl UnionFind {
 #[derive(PartialEq, Eq, Debug)]
 struct NodeCost {
     node: NodeId,
-    cost: usize,
+    cost: OrderedFloat<f64>,
 }
 
 impl Ord for NodeCost {
     fn cmp(&self, other: &Self) -> Ordering {
-        other.cost.cmp(&self.cost)
+        self.partial_cmp(other).unwrap()
     }
 }
 
 impl PartialOrd for NodeCost {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        other.cost.partial_cmp(&self.cost)
     }
 }
 
@@ -116,17 +118,17 @@ fn count() {
             NodeInfo::new(4, 2.4, 3.9, 0),
         ],
         vec![
-            EdgeInfo::new(0, 1, 3, 3),
-            EdgeInfo::new(0, 2, 3, 3),
-            EdgeInfo::new(2, 3, 3, 3),
-            EdgeInfo::new(4, 0, 3, 3),
+            EdgeInfo::new(0, 1, 3.0, 3),
+            EdgeInfo::new(0, 2, 3.0, 3),
+            EdgeInfo::new(2, 3, 3.0, 3),
+            EdgeInfo::new(4, 0, 3.0, 3),
         ],
     );
     assert_eq!(g.count_components(), 1)
 }
 
 pub struct Dijkstra<'a> {
-    dist: Vec<Length>,
+    dist: Vec<OrderedFloat<f64>>,
     touched: Vec<NodeId>,
     graph: &'a Graph,
 }
@@ -136,18 +138,18 @@ impl<'a> Dijkstra<'a> {
         use std::collections::BinaryHeap;
 
         for node in self.touched.drain(..) {
-            self.dist[node] = usize::MAX;
+            self.dist[node] = OrderedFloat::from(f64::MAX);
         }
         let mut heap = BinaryHeap::new();
         heap.push(NodeCost {
             node: source,
-            cost: 0,
+            cost: 0.0.into(),
         });
 
         while let Some(NodeCost { node, cost }) = heap.pop() {
 
             if node == dest {
-                return Some(cost);
+                return Some(cost.into_inner());
             }
 
             if cost > self.dist[node] {
@@ -156,7 +158,7 @@ impl<'a> Dijkstra<'a> {
             for edge in self.graph.outgoing_edges_for(node) {
                 let next = NodeCost {
                     node: edge.endpoint,
-                    cost: cost + edge.weight,
+                    cost: (cost.into_inner() + edge.weight).into(),
                 };
                 if next.cost < self.dist[next.node] {
                     self.dist[next.node] = next.cost;

@@ -9,6 +9,7 @@ heapsize_derive = "*"
 heapsize = "*"
 rocket = "*"
 rocket_codegen = "*"
+ordered-float = "*"
 
 [profile.release]
 debug = true

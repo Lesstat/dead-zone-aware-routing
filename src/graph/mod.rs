@@ -7,7 +7,7 @@ pub type NodeId = usize;
 pub type OsmNodeId = usize;
 pub type Latitude = f64;
 pub type Longitude = f64;
-pub type Length = usize;
+pub type Length = f64;
 pub type Speed = usize;
 pub type Height = usize;
 
@@ -56,7 +56,7 @@ impl EdgeInfo {
     }
 }
 
-#[derive(HeapSizeOf, Debug, Eq, PartialEq)]
+#[derive(HeapSizeOf, Debug, PartialEq)]
 pub struct HalfEdge {
     endpoint: NodeId,
     weight: Length,
@@ -250,11 +250,11 @@ fn graph_creation() {
             NodeInfo::new(78, 2.4, 3.4, 12),
         ],
         vec![
-            EdgeInfo::new(23, 27, 1, 1),
-            EdgeInfo::new(23, 53, 1, 1),
-            EdgeInfo::new(53, 36, 1, 1),
-            EdgeInfo::new(23, 36, 1, 1),
-            EdgeInfo::new(53, 78, 1, 1),
+            EdgeInfo::new(23, 27, 1.0, 1),
+            EdgeInfo::new(23, 53, 1.0, 1),
+            EdgeInfo::new(53, 36, 1.0, 1),
+            EdgeInfo::new(23, 36, 1.0, 1),
+            EdgeInfo::new(53, 78, 1.0, 1),
         ],
     );
     let exp = vec![
@@ -274,11 +274,11 @@ fn graph_creation() {
         &[
             HalfEdge {
                 endpoint: 3,
-                weight: 1,
+                weight: 1.0,
             },
             HalfEdge {
                 endpoint: 4,
-                weight: 1,
+                weight: 1.0,
             },
         ]
     );

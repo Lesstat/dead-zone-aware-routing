@@ -6,6 +6,7 @@ extern crate heapsize;
 extern crate heapsize_derive;
 extern crate osmpbfreader;
 extern crate rocket;
+extern crate ordered_float;
 
 mod graph;
 mod pbf;
