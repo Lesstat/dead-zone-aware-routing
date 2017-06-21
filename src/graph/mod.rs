@@ -223,14 +223,14 @@ impl Graph {
 
     fn map_edges_to_node_index(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
         use std::collections::hash_map::HashMap;
-        let map: HashMap<OsmNodeId, usize> = nodes
-            .iter()
-            .enumerate()
-            .map(|(i, n)| (n.osm_id, i))
-            .collect();
+        let map: HashMap<OsmNodeId, (usize, &NodeInfo)> =
+            nodes.iter().enumerate().map(|n| (n.1.osm_id, n)).collect();
         for e in edges {
-            e.source = map[&e.source];
-            e.dest = map[&e.dest];
+            let (source_id, source) = map[&e.source];
+            let (dest_id, dest) = map[&e.dest];
+            e.source = source_id;
+            e.dest = dest_id;
+            e.length = ((source.lat - dest.lat).powi(2) + (source.long - dest.long).powi(2)).sqrt();
         }
     }
 
