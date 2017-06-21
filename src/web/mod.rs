@@ -4,20 +4,44 @@ use super::grid::NodeInfoWithIndex;
 use rocket::State;
 use rocket::request::{FormItems, FromForm};
 use rocket::response::{self, Response, Responder, NamedFile};
+use rocket::response::content::JSON;
+use geojson::{Value, Geometry, Feature, GeoJson};
 
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 
 #[get("/route?<q>")]
-pub fn route(q: DijkQuery, graph: State<Graph>) -> String {
+pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
     let mut d = graph.dijkstra();
     let dist = d.distance(q.s, q.t);
-    match dist {
-        Some(d) => d.to_string(),
-        None => "No route found".to_string(),
-    }
+    let dist = match dist {
+        Some(d) => d,
+        None => return JSON(format!("{{ \"distance\": 0, \"route\": [] }}")),
+    };
+    let geometry = Geometry::new(Value::LineString(
+        dist.node_seq
+            .iter()
+            .map(|node| vec![node.lat, node.long])
+            .collect(),
+    ));
+
+    let geo: GeoJson = GeoJson::Feature(Feature {
+        bbox: None,
+        geometry: Some(geometry),
+        id: None,
+        properties: None,
+        foreign_members: None,
+    });
+    JSON(
+        format!(
+            "{{ \"distance\": {},  \"route\": {} }}",
+            dist.distance,
+            geo.to_string()
+        ).to_string(),
+    )
 }
+
 
 pub struct DijkQuery {
     s: NodeId,

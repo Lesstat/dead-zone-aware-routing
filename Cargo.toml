@@ -10,6 +10,8 @@ heapsize = "*"
 rocket = "*"
 rocket_codegen = "*"
 ordered-float = "*"
+geojson = "*"
+serde_json = "*"
 
 [profile.release]
 debug = true

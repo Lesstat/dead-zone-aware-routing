@@ -1,5 +1,6 @@
 mod alg;
 
+pub use self::alg::Route;
 use super::grid::{Grid, NodeInfoWithIndex};
 
 

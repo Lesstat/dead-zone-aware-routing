@@ -7,6 +7,7 @@ extern crate heapsize_derive;
 extern crate osmpbfreader;
 extern crate rocket;
 extern crate ordered_float;
+extern crate geojson;
 
 mod graph;
 mod pbf;

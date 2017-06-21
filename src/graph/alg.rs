@@ -1,8 +1,9 @@
-use super::{Graph, NodeId, Length};
+use super::{Graph, NodeId, Length, NodeInfo};
 
 use std::time::Instant;
 use std::cmp::Ordering;
 use std::f64;
+use std::collections::VecDeque;
 
 use ordered_float::OrderedFloat;
 
@@ -133,9 +134,15 @@ pub struct Dijkstra<'a> {
     graph: &'a Graph,
 }
 
+pub struct Route<'a> {
+    pub distance: Length,
+    pub node_seq: VecDeque<&'a NodeInfo>,
+}
+
 impl<'a> Dijkstra<'a> {
-    pub fn distance(&mut self, source: NodeId, dest: NodeId) -> Option<Length> {
+    pub fn distance(&mut self, source: NodeId, dest: NodeId) -> Option<Route> {
         use std::collections::BinaryHeap;
+        let mut prev: Vec<usize> = (0..self.graph.node_count()).collect();
 
         for node in self.touched.drain(..) {
             self.dist[node] = OrderedFloat::from(f64::MAX);
@@ -149,7 +156,17 @@ impl<'a> Dijkstra<'a> {
         while let Some(NodeCost { node, cost }) = heap.pop() {
 
             if node == dest {
-                return Some(cost.into_inner());
+                let mut path = VecDeque::new();
+                let mut cur = node;
+                while cur != source {
+                    path.push_front(&self.graph.node_info[cur]);
+                    cur = prev[cur];
+                }
+                path.push_front(&self.graph.node_info[cur]);
+                return Some(Route {
+                    distance: cost.into_inner(),
+                    node_seq: path,
+                });
             }
 
             if cost > self.dist[node] {
@@ -161,6 +178,7 @@ impl<'a> Dijkstra<'a> {
                     cost: (cost.into_inner() + edge.weight).into(),
                 };
                 if next.cost < self.dist[next.node] {
+                    prev[next.node] = node;
                     self.dist[next.node] = next.cost;
                     self.touched.push(next.node);
                     heap.push(next);
