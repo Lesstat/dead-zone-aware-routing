@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    
+    <title>Flos Fapra</title>
+    
+    <link href="leaflet/leaflet.css" rel="stylesheet" type="text/css" />
+    <script src="leaflet/leaflet.js"> </script>
+
+  </head>
+    
+  <body> 
+    
+    <div id="mapid" style="width: 100%; height: 400px;"></div>
+    <div>
+      Start ID: <span id="start"></span> <br />
+      End ID: <span id="end"></span><br />
+      Distance: <span id="dist"></span>
+    </div>
+    <script>
+     
+     var mymap = L.map('mapid').setView([48.7456643, 9.1070856], 25);
+     var start = true;
+     
+     L.tileLayer('http://{s}.tile.openstreetmap.org/{id}/{z}/{x}/{y}.png', {
+       maxZoom: 18,
+       attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
+		    '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ',
+       id: ''
+     }).addTo(mymap);
+     
+      function onMapClick(e) {
+	var id;
+	if (start){
+	  id = "start";
+	} else{
+	  id = "end"
+	}
+	start = !start;
+	get_node(id, e.latlng) ;
+     }
+     
+     mymap.on('click', onMapClick);
+     
+     function get_node(id, latlng){
+       
+       var xmlhttp = new XMLHttpRequest();
+       
+       xmlhttp.onreadystatechange = function() {
+	 if (xmlhttp.readyState == XMLHttpRequest.DONE ) {
+	   if (xmlhttp.status == 200) {
+	     document.getElementById(id).innerHTML = xmlhttp.responseText;
+	     if (id == "end"){
+	       calc_dist();
+	     }
+	   }
+	   else if (xmlhttp.status == 400) {
+	     alert('There was an error 400');
+	   }
+	   else {
+	     alert('something else other than 200 was returned');
+	   }
+	 }
+       };
+       
+       xmlhttp.open("GET", "node_at?lat="+ latlng.lat  + "&long=" + latlng.lng, true);
+       xmlhttp.send();
+     }
+     function calc_dist(){
+       
+       var xmlhttp = new XMLHttpRequest();
+       
+       xmlhttp.onreadystatechange = function() {
+	 if (xmlhttp.readyState == XMLHttpRequest.DONE ) {
+	   if (xmlhttp.status == 200) {
+	     document.getElementById("dist").innerHTML = xmlhttp.responseText;
+	   }
+	   else if (xmlhttp.status == 400) {
+	     alert('There was an error 400');
+	   }
+	   else {
+	     alert('something else other than 200 was returned');
+	   }
+	 }
+       };
+       var s = document.getElementById("start").innerHTML;
+       var t = document.getElementById("end").innerHTML;
+       xmlhttp.open("GET", "route?s="+ s  + "&t=" + t, true);
+       xmlhttp.send();
+     }
+    </script>
+    
+    
+  </body>
+  
+  
+</html>

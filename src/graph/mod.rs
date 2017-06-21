@@ -1,6 +1,7 @@
 mod alg;
 
-use super::grid::Grid;
+use super::grid::{Grid, NodeInfoWithIndex};
+
 
 pub type NodeId = usize;
 pub type OsmNodeId = usize;
@@ -233,7 +234,7 @@ impl Graph {
         }
     }
 
-    pub fn next_node_to(&self, lat: f64, long: f64) -> Option<&NodeInfo> {
+    pub fn next_node_to(&self, lat: f64, long: f64) -> Option<NodeInfoWithIndex> {
         self.grid.nearest_neighbor(lat, long, &self.node_info).ok()
     }
 }

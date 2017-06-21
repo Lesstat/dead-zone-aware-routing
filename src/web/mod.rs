@@ -1,9 +1,14 @@
-use super::graph::{NodeId, NodeInfo, Graph};
+use super::graph::{NodeId, Graph};
+use super::grid::NodeInfoWithIndex;
+
 use rocket::State;
 use rocket::request::{FormItems, FromForm};
-use rocket::response::{self, Response, Responder};
+use rocket::response::{self, Response, Responder, NamedFile};
 
 use std::io::Cursor;
+use std::path::{Path, PathBuf};
+
+
 #[get("/route?<q>")]
 pub fn route(q: DijkQuery, graph: State<Graph>) -> String {
     let mut d = graph.dijkstra();
@@ -63,8 +68,8 @@ impl From<::std::num::ParseFloatError> for ParseQueryErr {
 
 
 #[get("/node_at?<q>")]
-pub fn next_node_to(q: NNQuery, graph: State<Graph>) -> Option<NodeInfo> {
-    graph.next_node_to(q.lat, q.long).map(|node| node.clone())
+pub fn next_node_to(q: NNQuery, graph: State<Graph>) -> Option<NodeInfoWithIndex> {
+    graph.next_node_to(q.lat, q.long)
 }
 
 pub struct NNQuery {
@@ -100,11 +105,19 @@ impl<'f> FromForm<'f> for NNQuery {
     }
 }
 
-impl<'a> Responder<'a> for NodeInfo {
+
+impl<'a> Responder<'a> for NodeInfoWithIndex {
     fn respond(self) -> response::Result<'a> {
         Response::build()
-            .sized_body(Cursor::new(format!("{{ \"id\": {}  }}", self.osm_id)))
+            .sized_body(Cursor::new(format!("{}", self.0)))
             .ok()
 
     }
+}
+
+#[get("/<path..>")]
+pub fn serve_files(path: PathBuf) -> Option<NamedFile> {
+    let p = Path::new("static/").join(path);
+    println!("Path: {:?}", p);
+    NamedFile::open(p).ok()
 }

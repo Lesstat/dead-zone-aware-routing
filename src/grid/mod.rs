@@ -107,12 +107,14 @@ impl Grid {
         Ok(y * (self.side_length) + x)
 
     }
+
+
     pub fn nearest_neighbor<'a>(
         &self,
         lat: f64,
         long: f64,
         nodes: &'a [NodeInfo],
-    ) -> Result<&'a NodeInfo, ()> {
+    ) -> Result<NodeInfoWithIndex, ()> {
         use std::{f64, usize};
 
         let cell_width = (self.b_box.lat_max - self.b_box.lat_min) / self.side_length as f64;
@@ -146,12 +148,15 @@ impl Grid {
             }
         }
         if min_index < usize::MAX {
-            Ok(&nodes[min_index])
+            Ok(NodeInfoWithIndex(min_index, nodes[min_index].clone()))
         } else {
             Err(())
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct NodeInfoWithIndex(pub usize, pub NodeInfo);
 
 #[test]
 fn add_node_to_bounding_box() {
@@ -230,7 +235,7 @@ fn nearest_neighbor_2_points() {
     ];
     let g = Grid::new(&mut nodes, 10);
     let n = g.nearest_neighbor(10.3, 30.5, &nodes).unwrap();
-    assert_eq!(&nodes[0], n);
+    assert_eq!(0, n.0);
 }
 
 #[test]
@@ -241,7 +246,7 @@ fn nearest_neighbor_2_points_other_point() {
     ];
     let g = Grid::new(&mut nodes, 10);
     let n = g.nearest_neighbor(20.5, 40.1, &nodes).unwrap();
-    assert_eq!(&nodes[1], n);
+    assert_eq!(1, n.0);
 }
 
 #[test]
@@ -252,5 +257,5 @@ fn nearest_neighbor_2_points_different_cell() {
     ];
     let g = Grid::new(&mut nodes, 10);
     let n = g.nearest_neighbor(19.0, 38.0, &nodes).unwrap();
-    assert_eq!(&nodes[1], n);
+    assert_eq!(1, n.0);
 }
