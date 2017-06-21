@@ -22,7 +22,7 @@ pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
     let geometry = Geometry::new(Value::LineString(
         dist.node_seq
             .iter()
-            .map(|node| vec![node.lat, node.long])
+            .map(|node| vec![node.long, node.lat])
             .collect(),
     ));
 
