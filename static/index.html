@@ -14,7 +14,10 @@
     <div style="float:left; width: 300px;">
       Start ID: <span id="start"></span> <br />
       End ID: <span id="end"></span><br />
-      Distance: <span id="dist"></span>
+      Distance: <span id="dist"></span> <br />
+      Routing: <br />
+      Short<input type="radio" name="goal" value="length" onclick="calc_dist()">
+      Fast<input type="radio" name="goal" value="speed"   onclick="calc_dist()">
     </div>
     <div id="mapid" style="width: 80%; height: 800px;"></div>
     <script>
@@ -62,6 +65,7 @@
        xmlhttp.open("GET", "node_at?lat="+ latlng.lat  + "&long=" + latlng.lng, true);
        xmlhttp.send();
      }
+
      function calc_dist(){
        
        var xmlhttp = new XMLHttpRequest();
@@ -82,9 +86,10 @@
 	     document.getElementById("dist").innerHTML = "Unkown";
 	   }
        };
+       var goal = document.querySelector('input[name="goal"]:checked').value;
        var s = document.getElementById("start").innerHTML;
        var t = document.getElementById("end").innerHTML;
-       xmlhttp.open("GET", "route?s="+ s  + "&t=" + t, true);
+       xmlhttp.open("GET", "route?s="+ s  + "&t=" + t+ "&goal=" + goal, true);
        xmlhttp.send();
      }
     </script>
