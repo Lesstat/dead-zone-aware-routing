@@ -11,12 +11,12 @@
     
   <body> 
     
-    <div id="mapid" style="width: 100%; height: 400px;"></div>
-    <div>
+    <div style="float:left; width: 300px;">
       Start ID: <span id="start"></span> <br />
       End ID: <span id="end"></span><br />
       Distance: <span id="dist"></span>
     </div>
+    <div id="mapid" style="width: 80%; height: 800px;"></div>
     <script>
      
      var map = L.map('mapid', { closePopupOnClick: false}).setView([48.7456643, 9.1070856], 15);
