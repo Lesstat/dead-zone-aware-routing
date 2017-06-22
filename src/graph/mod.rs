@@ -286,7 +286,7 @@ impl Graph {
             let (dest_id, dest) = map[&e.dest];
             e.source = source_id;
             e.dest = dest_id;
-            e.length = ((source.lat - dest.lat).powi(2) + (source.long - dest.long).powi(2)).sqrt();
+            e.length = haversine_distance(source, dest);
         }
     }
 
@@ -294,7 +294,18 @@ impl Graph {
         self.grid.nearest_neighbor(lat, long, &self.node_info).ok()
     }
 }
-
+// Adapted from https://github.com/georust/rust-geo
+fn haversine_distance(a: &NodeInfo, b: &NodeInfo) -> Length {
+    let theta1 = a.lat.to_radians();
+    let theta2 = b.lat.to_radians();
+    let delta_theta = (b.lat - a.lat).to_radians();
+    let delta_lambda = (b.long - a.long).to_radians();
+    let a = (delta_theta / 2.0).sin().powi(2) +
+        theta1.cos() * theta2.cos() * (delta_lambda / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().asin();
+    // WGS84 equatorial radius is 6378137.0
+    6371.0 * c
+}
 #[test]
 fn graph_creation() {
 
@@ -337,7 +348,7 @@ fn graph_creation() {
             },
             HalfEdge {
                 endpoint: 4,
-                weight: (((2.3 - 2.4) as f64).powi(2) + ((3.3 - 3.4) as f64).powi(2)).sqrt(),
+                weight: 22792.151483921476,
                 for_cars: true,
                 for_pedestrians: true,
             },
