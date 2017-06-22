@@ -40,7 +40,8 @@ pub fn load_graph<P: AsRef<Path>>(p: P) -> Graph {
                     );
                     if no_cars && no_pedestrians {
                         continue;
-                    } else if no_cars {
+                    }
+                    if no_cars {
                         edge.not_for_cars();
                     } else if no_pedestrians {
                         edge.not_for_pedestrians();
@@ -106,12 +107,12 @@ fn is_one_way(way: &Way) -> bool {
 fn is_not_for_cars(way: &Way) -> bool {
     let street_type = way.tags.get("highway").map(String::as_ref);
     match street_type {
-        Some("footway") => true,
-        Some("bridleway") => true,
-        Some("steps") => true,
-        Some("path") => true,
-        Some("cycleway") => true,
-        Some("track") => true,
+        Some("footway") |
+        Some("bridleway") |
+        Some("steps") |
+        Some("path") |
+        Some("cycleway") |
+        Some("track") |
         Some("pedestrian") => true,
         _ => false,
     }
@@ -127,12 +128,10 @@ fn is_not_for_pedestrians(way: &Way) -> bool {
         None => false,
     };
     if has_side_walk {
-        return true;
+        return false;
     }
     match street_type {
-        Some("motorway") => true,
-        Some("trunk") => true,
-        Some("primary") => true,
+        Some("motorway") | Some("trunk") | Some("primary") => true,
         _ => false,
     }
 
