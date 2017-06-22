@@ -60,9 +60,14 @@ impl EdgeInfo {
 #[derive(HeapSizeOf, Debug, PartialEq)]
 pub struct HalfEdge {
     endpoint: NodeId,
-    weight: Length,
+    weight: f64,
 }
 
+#[derive(HeapSizeOf)]
+pub struct HalfEdges {
+    out_edges: Vec<HalfEdge>,
+    in_edges: Vec<HalfEdge>,
+}
 
 
 #[derive(Clone, PartialEq, Debug, HeapSizeOf)]
@@ -83,8 +88,8 @@ impl NodeOffset {
 pub struct Graph {
     node_info: Vec<NodeInfo>,
     node_offsets: Vec<NodeOffset>,
-    out_edges: Vec<HalfEdge>,
-    in_edges: Vec<HalfEdge>,
+    length_edges: HalfEdges,
+    speed_edges: HalfEdges,
     grid: Grid,
 }
 
@@ -93,35 +98,48 @@ enum OffsetMode {
     Out,
 }
 
+pub enum RoutingGoal {
+    Length,
+    Speed,
+}
+
 impl Graph {
     pub fn new(mut node_info: Vec<NodeInfo>, mut edges: Vec<EdgeInfo>) -> Graph {
         let grid = Grid::new(&mut node_info, 100);
         Graph::map_edges_to_node_index(&node_info, &mut edges);
         let node_count = node_info.len();
-        let (node_offset, in_edges, out_edges) = Graph::calc_node_offsets(node_count, edges);
+        let (node_offsets, length_edges, speed_edges) = Graph::calc_node_offsets(node_count, edges);
 
         Graph {
-            node_info: node_info,
-            node_offsets: node_offset,
-            out_edges: out_edges,
-            in_edges: in_edges,
-            grid: grid,
+            node_info,
+            node_offsets,
+            length_edges,
+            speed_edges,
+            grid,
         }
 
     }
 
-    pub fn outgoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
-        &self.out_edges[self.node_offsets[id].out_start..self.node_offsets[id + 1].out_start]
+    pub fn outgoing_edges_for(&self, id: NodeId, goal: &RoutingGoal) -> &[HalfEdge] {
+        let out_edges = match *goal {
+            RoutingGoal::Length => &self.length_edges.out_edges,
+            RoutingGoal::Speed => &self.speed_edges.out_edges,
+        };
+        &out_edges[self.node_offsets[id].out_start..self.node_offsets[id + 1].out_start]
     }
 
-    pub fn ingoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
-        &self.out_edges[self.node_offsets[id].in_start..self.node_offsets[id + 1].in_start]
+    pub fn ingoing_edges_for(&self, id: NodeId, goal: &RoutingGoal) -> &[HalfEdge] {
+        let in_edges = match *goal {
+            RoutingGoal::Length => &self.length_edges.in_edges,
+            RoutingGoal::Speed => &self.speed_edges.in_edges,
+        };
+        &in_edges[self.node_offsets[id].in_start..self.node_offsets[id + 1].in_start]
     }
 
     fn calc_node_offsets(
         node_count: usize,
         mut edges: Vec<EdgeInfo>,
-    ) -> (Vec<NodeOffset>, Vec<HalfEdge>, Vec<HalfEdge>) {
+    ) -> (Vec<NodeOffset>, HalfEdges, HalfEdges) {
         use std::cmp::Ordering;
 
         fn calc_offset_inner(
@@ -173,7 +191,8 @@ impl Graph {
             }
         });
         calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::Out);
-        let out_edges = Graph::create_half_edges(&edges, OffsetMode::Out);
+        let l_out_edges = Graph::create_half_edges(&edges, OffsetMode::Out, RoutingGoal::Length);
+        let s_out_edges = Graph::create_half_edges(&edges, OffsetMode::Out, RoutingGoal::Speed);
 
         edges.sort_by(|a, b| {
             let ord = a.dest.cmp(&b.dest);
@@ -183,21 +202,35 @@ impl Graph {
             }
         });
         calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::In);
-        let in_edges = Graph::create_half_edges(&edges, OffsetMode::In);
+        let l_in_edges = Graph::create_half_edges(&edges, OffsetMode::In, RoutingGoal::Length);
+        let s_in_edges = Graph::create_half_edges(&edges, OffsetMode::In, RoutingGoal::Speed);
 
+        let length_edges = HalfEdges {
+            in_edges: l_in_edges,
+            out_edges: l_out_edges,
+        };
+        let speed_edges = HalfEdges {
+            in_edges: s_in_edges,
+            out_edges: s_out_edges,
+        };
 
-        (node_offsets, in_edges, out_edges)
+        (node_offsets, length_edges, speed_edges)
     }
-    fn create_half_edges(edges: &[EdgeInfo], mode: OffsetMode) -> Vec<HalfEdge> {
+    fn create_half_edges(edges: &[EdgeInfo], mode: OffsetMode, goal: RoutingGoal) -> Vec<HalfEdge> {
         match mode {
 
             OffsetMode::In => {
                 edges
                     .iter()
                     .map(|e| {
+
+                        let weight = match goal {
+                            RoutingGoal::Length => e.length,
+                            RoutingGoal::Speed => e.length / e.speed as f64,
+                        };
                         HalfEdge {
                             endpoint: e.source,
-                            weight: e.length,
+                            weight,
                         }
                     })
                     .collect()
@@ -207,10 +240,15 @@ impl Graph {
                 edges
                     .iter()
                     .map(|e| {
+                        let weight = match goal {
+                            RoutingGoal::Length => e.length,
+                            RoutingGoal::Speed => e.length / e.speed as f64,
+                        };
                         HalfEdge {
                             endpoint: e.dest,
-                            weight: e.length,
+                            weight,
                         }
+
                     })
                     .collect()
             }
@@ -242,6 +280,7 @@ impl Graph {
 
 #[test]
 fn graph_creation() {
+
     let g = Graph::new(
         vec![
             NodeInfo::new(23, 2.3, 3.3, 12),
@@ -269,17 +308,17 @@ fn graph_creation() {
     assert_eq!(g.node_offsets.len(), exp.len());
     assert_eq!(g.node_offsets, exp);
 
-    assert_eq!(g.outgoing_edges_for(0).len(), 3);
+    assert_eq!(g.outgoing_edges_for(0, &RoutingGoal::Length).len(), 3);
     assert_eq!(
-        g.outgoing_edges_for(2),
+        g.outgoing_edges_for(2, &RoutingGoal::Length),
         &[
             HalfEdge {
                 endpoint: 3,
-                weight: 1.0,
+                weight: 0.0,
             },
             HalfEdge {
                 endpoint: 4,
-                weight: 1.0,
+                weight: (((2.3 - 2.4) as f64).powi(2) + ((3.3 - 3.4) as f64).powi(2)).sqrt(),
             },
         ]
     );

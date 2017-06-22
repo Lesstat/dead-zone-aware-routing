@@ -1,4 +1,4 @@
-use super::graph::{NodeId, Graph};
+use super::graph::{NodeId, Graph, RoutingGoal};
 use super::grid::NodeInfoWithIndex;
 
 use rocket::State;
@@ -9,12 +9,13 @@ use geojson::{Value, Geometry, Feature, GeoJson};
 
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 
 #[get("/route?<q>")]
 pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
     let mut d = graph.dijkstra();
-    let dist = d.distance(q.s, q.t);
+    let dist = d.distance(q.s, q.t, q.goal);
     let dist = match dist {
         Some(d) => d,
         None => return JSON("{{ \"distance\": 0, \"route\": [] }}".to_string()),
@@ -46,6 +47,7 @@ pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
 pub struct DijkQuery {
     s: NodeId,
     t: NodeId,
+    goal: RoutingGoal,
 }
 
 pub enum ParseQueryErr {
@@ -61,7 +63,15 @@ impl<'f> FromForm<'f> for DijkQuery {
     fn from_form_items(form_items: &mut FormItems<'f>) -> Result<Self, Self::Error> {
         let mut s: NodeId = ::std::usize::MAX;
         let mut t: NodeId = ::std::usize::MAX;
+        let mut goal = RoutingGoal::Length;
         for item in form_items {
+
+            match item.0 {
+                "s" => s = item.1.parse()?,
+                "t" => t = item.1.parse()?,
+                "goal" => goal = item.1.parse()?,
+                _ => (),
+            };
             if item.0 == "s" {
                 s = item.1.parse()?;
             }
@@ -75,7 +85,19 @@ impl<'f> FromForm<'f> for DijkQuery {
         if t == ::std::usize::MAX {
             return Err(ParseQueryErr::ItemNotPresen("No parameter \"t\" present"));
         }
-        Ok(DijkQuery { s, t })
+        Ok(DijkQuery { s, t, goal })
+    }
+}
+
+impl FromStr for RoutingGoal {
+    type Err = ParseQueryErr;
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string {
+            "length" => Ok(RoutingGoal::Length),
+            "speed" => Ok(RoutingGoal::Speed),
+            _ => Err(ParseQueryErr::ParseErr),
+        }
+
     }
 }
 

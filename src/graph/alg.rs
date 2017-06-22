@@ -1,4 +1,4 @@
-use super::{Graph, NodeId, Length, NodeInfo};
+use super::{Graph, NodeId, Length, NodeInfo, RoutingGoal};
 
 use std::time::Instant;
 use std::cmp::Ordering;
@@ -28,7 +28,11 @@ impl Graph {
         while let Some(n) = queue.pop() {
             if union.find(n) == n {
                 union.union(start, n);
-                queue.extend(self.outgoing_edges_for(n).iter().map(|e| e.endpoint));
+                queue.extend(
+                    self.outgoing_edges_for(n, &RoutingGoal::Length)
+                        .iter()
+                        .map(|e| e.endpoint),
+                );
             }
 
         }
@@ -140,7 +144,7 @@ pub struct Route<'a> {
 }
 
 impl<'a> Dijkstra<'a> {
-    pub fn distance(&mut self, source: NodeId, dest: NodeId) -> Option<Route> {
+    pub fn distance(&mut self, source: NodeId, dest: NodeId, goal: RoutingGoal) -> Option<Route> {
         use std::collections::BinaryHeap;
         let mut prev: Vec<usize> = (0..self.graph.node_count()).collect();
 
@@ -172,7 +176,7 @@ impl<'a> Dijkstra<'a> {
             if cost > self.dist[node] {
                 continue;
             }
-            for edge in self.graph.outgoing_edges_for(node) {
+            for edge in self.graph.outgoing_edges_for(node, &goal) {
                 let next = NodeCost {
                     node: edge.endpoint,
                     cost: (cost.into_inner() + edge.weight).into(),
