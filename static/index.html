@@ -16,8 +16,11 @@
       End ID: <span id="end"></span><br />
       Distance: <span id="dist"></span> <br />
       Routing: <br />
-      Short<input type="radio" name="goal" value="length" onclick="calc_dist()">
+      Short<input type="radio" name="goal" value="length" checked="checked" onclick="calc_dist()">
       Fast<input type="radio" name="goal" value="speed"   onclick="calc_dist()">
+      <br />
+      Car<input type="radio" name="move" value="car"  checked="checked" onclick="calc_dist()">
+      Foot<input type="radio" name="move" value="foot"   onclick="calc_dist()">
     </div>
     <div id="mapid" style="width: 80%; height: 800px;"></div>
     <script>
@@ -87,9 +90,10 @@
 	   }
        };
        var goal = document.querySelector('input[name="goal"]:checked').value;
+       var move = document.querySelector('input[name="move"]:checked').value;
        var s = document.getElementById("start").innerHTML;
        var t = document.getElementById("end").innerHTML;
-       xmlhttp.open("GET", "route?s="+ s  + "&t=" + t+ "&goal=" + goal, true);
+       xmlhttp.open("GET", "route?s="+ s  + "&t=" + t+ "&goal=" + goal + "&move=" + move, true);
        xmlhttp.send();
      }
     </script>

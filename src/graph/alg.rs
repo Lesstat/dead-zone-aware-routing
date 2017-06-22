@@ -144,8 +144,20 @@ pub struct Route<'a> {
 }
 
 impl<'a> Dijkstra<'a> {
-    pub fn distance(&mut self, source: NodeId, dest: NodeId, goal: RoutingGoal) -> Option<Route> {
+    pub fn distance(
+        &mut self,
+        source: NodeId,
+        dest: NodeId,
+        goal: RoutingGoal,
+        movement: Movement,
+    ) -> Option<Route> {
         use std::collections::BinaryHeap;
+        let goal = match movement {
+            Movement::Car => goal,
+            Movement::Foot => RoutingGoal::Length,
+        };
+
+
         let mut prev: Vec<usize> = (0..self.graph.node_count()).collect();
 
         for node in self.touched.drain(..) {
@@ -177,9 +189,19 @@ impl<'a> Dijkstra<'a> {
                 continue;
             }
             for edge in self.graph.outgoing_edges_for(node, &goal) {
-                if !edge.for_cars {
-                    continue;
+                match movement {
+                    Movement::Car => {
+                        if !edge.for_cars {
+                            continue;
+                        }
+                    }
+                    Movement::Foot => {
+                        if !edge.for_pedestrians {
+                            continue;
+                        }
+                    }
                 }
+
                 let next = NodeCost {
                     node: edge.endpoint,
                     cost: (cost.into_inner() + edge.weight).into(),
@@ -195,4 +217,10 @@ impl<'a> Dijkstra<'a> {
         }
         None
     }
+}
+
+
+pub enum Movement {
+    Car,
+    Foot,
 }

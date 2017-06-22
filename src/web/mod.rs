@@ -1,4 +1,4 @@
-use super::graph::{NodeId, Graph, RoutingGoal};
+use super::graph::{NodeId, Graph, RoutingGoal, Movement};
 use super::grid::NodeInfoWithIndex;
 
 use rocket::State;
@@ -15,7 +15,7 @@ use std::str::FromStr;
 #[get("/route?<q>")]
 pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
     let mut d = graph.dijkstra();
-    let dist = d.distance(q.s, q.t, q.goal);
+    let dist = d.distance(q.s, q.t, q.goal, q.movement);
     let dist = match dist {
         Some(d) => d,
         None => return JSON("{{ \"distance\": 0, \"route\": [] }}".to_string()),
@@ -48,6 +48,7 @@ pub struct DijkQuery {
     s: NodeId,
     t: NodeId,
     goal: RoutingGoal,
+    movement: Movement,
 }
 
 pub enum ParseQueryErr {
@@ -64,20 +65,16 @@ impl<'f> FromForm<'f> for DijkQuery {
         let mut s: NodeId = ::std::usize::MAX;
         let mut t: NodeId = ::std::usize::MAX;
         let mut goal = RoutingGoal::Length;
+        let mut movement = Movement::Car;
         for item in form_items {
 
             match item.0 {
                 "s" => s = item.1.parse()?,
                 "t" => t = item.1.parse()?,
                 "goal" => goal = item.1.parse()?,
+                "move" => movement = item.1.parse()?,
                 _ => (),
             };
-            if item.0 == "s" {
-                s = item.1.parse()?;
-            }
-            if item.0 == "t" {
-                t = item.1.parse()?;
-            }
         }
         if s == ::std::usize::MAX {
             return Err(ParseQueryErr::ItemNotPresen("No parameter \"s\" present"));
@@ -85,7 +82,12 @@ impl<'f> FromForm<'f> for DijkQuery {
         if t == ::std::usize::MAX {
             return Err(ParseQueryErr::ItemNotPresen("No parameter \"t\" present"));
         }
-        Ok(DijkQuery { s, t, goal })
+        Ok(DijkQuery {
+            s,
+            t,
+            goal,
+            movement,
+        })
     }
 }
 
@@ -97,7 +99,17 @@ impl FromStr for RoutingGoal {
             "speed" => Ok(RoutingGoal::Speed),
             _ => Err(ParseQueryErr::ParseErr),
         }
+    }
+}
 
+impl FromStr for Movement {
+    type Err = ParseQueryErr;
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string {
+            "car" => Ok(Movement::Car),
+            "foot" => Ok(Movement::Foot),
+            _ => Err(ParseQueryErr::ParseErr),
+        }
     }
 }
 
