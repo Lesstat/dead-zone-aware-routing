@@ -44,6 +44,8 @@ pub struct EdgeInfo {
     pub dest: NodeId,
     length: Length,
     speed: Speed,
+    for_cars: bool,
+    for_pedestrians: bool,
 }
 
 impl EdgeInfo {
@@ -53,7 +55,16 @@ impl EdgeInfo {
             dest: dest,
             length: length,
             speed: speed,
+            for_cars: true,
+            for_pedestrians: true,
         }
+    }
+
+    pub fn not_for_cars(&mut self) {
+        self.for_cars = false;
+    }
+    pub fn not_for_pedestrians(&mut self) {
+        self.for_pedestrians = false;
     }
 }
 
@@ -61,6 +72,8 @@ impl EdgeInfo {
 pub struct HalfEdge {
     endpoint: NodeId,
     weight: f64,
+    for_cars: bool,
+    for_pedestrians: bool,
 }
 
 #[derive(HeapSizeOf)]
@@ -231,6 +244,8 @@ impl Graph {
                         HalfEdge {
                             endpoint: e.source,
                             weight,
+                            for_cars: e.for_cars,
+                            for_pedestrians: e.for_pedestrians,
                         }
                     })
                     .collect()
@@ -247,6 +262,8 @@ impl Graph {
                         HalfEdge {
                             endpoint: e.dest,
                             weight,
+                            for_cars: e.for_cars,
+                            for_pedestrians: e.for_pedestrians,
                         }
 
                     })
@@ -315,10 +332,14 @@ fn graph_creation() {
             HalfEdge {
                 endpoint: 3,
                 weight: 0.0,
+                for_cars: true,
+                for_pedestrians: true,
             },
             HalfEdge {
                 endpoint: 4,
                 weight: (((2.3 - 2.4) as f64).powi(2) + ((3.3 - 3.4) as f64).powi(2)).sqrt(),
+                for_cars: true,
+                for_pedestrians: true,
             },
         ]
     );

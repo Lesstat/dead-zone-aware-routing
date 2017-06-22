@@ -177,6 +177,9 @@ impl<'a> Dijkstra<'a> {
                 continue;
             }
             for edge in self.graph.outgoing_edges_for(node, &goal) {
+                if !edge.for_cars {
+                    continue;
+                }
                 let next = NodeCost {
                     node: edge.endpoint,
                     cost: (cost.into_inner() + edge.weight).into(),

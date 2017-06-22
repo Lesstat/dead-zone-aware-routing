@@ -29,21 +29,36 @@ pub fn load_graph<P: AsRef<Path>>(p: P) -> Graph {
             OsmObj::Way(w) => {
                 let speed = determine_speed(&w);
                 let is_one_way = is_one_way(&w);
+                let no_cars = is_not_for_cars(&w);
+                let no_pedestrians = is_not_for_pedestrians(&w);
                 for (index, node) in w.nodes[0..(w.nodes.len() - 1)].iter().enumerate() {
-                    edges.push(EdgeInfo::new(
+                    let mut edge = EdgeInfo::new(
                         node.0 as NodeId,
                         w.nodes[index + 1].0 as NodeId,
                         1.1, // TODO: calculate Length
                         speed,
-                    ));
+                    );
+                    if no_cars && no_pedestrians {
+                        continue;
+                    } else if no_cars {
+                        edge.not_for_cars();
+                    } else if no_pedestrians {
+                        edge.not_for_pedestrians();
+                    }
+                    edges.push(edge);
                     if !is_one_way {
-
-                        edges.push(EdgeInfo::new(
+                        let mut edge = EdgeInfo::new(
                             w.nodes[index + 1].0 as NodeId,
                             node.0 as NodeId,
                             1.1, // TODO: calculate Length
                             speed,
-                        ));
+                        );
+                        if no_cars {
+                            edge.not_for_cars();
+                        } else if no_pedestrians {
+                            edge.not_for_pedestrians();
+                        }
+                        edges.push(edge);
                     }
                 }
             }
@@ -87,4 +102,38 @@ fn is_one_way(way: &Way) -> bool {
             }
         }
     }
+}
+fn is_not_for_cars(way: &Way) -> bool {
+    let street_type = way.tags.get("highway").map(String::as_ref);
+    match street_type {
+        Some("footway") => true,
+        Some("bridleway") => true,
+        Some("steps") => true,
+        Some("path") => true,
+        Some("cycleway") => true,
+        Some("track") => true,
+        Some("pedestrian") => true,
+        _ => false,
+    }
+
+}
+
+fn is_not_for_pedestrians(way: &Way) -> bool {
+
+    let street_type = way.tags.get("highway").map(String::as_ref);
+    let side_walk: Option<&str> = way.tags.get("sidewalk").map(String::as_ref);
+    let has_side_walk: bool = match side_walk {
+        Some(s) => s != "no",
+        None => false,
+    };
+    if has_side_walk {
+        return true;
+    }
+    match street_type {
+        Some("motorway") => true,
+        Some("trunk") => true,
+        Some("primary") => true,
+        _ => false,
+    }
+
 }
