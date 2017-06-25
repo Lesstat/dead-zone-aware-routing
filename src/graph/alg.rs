@@ -240,14 +240,6 @@ impl<'a> RouteBuilder<'a> {
             graph,
         }
     }
-    pub fn distance(mut self, dist: Length) -> Self {
-        self.distance = Some(dist);
-        self
-    }
-    pub fn travel_time(mut self, time: f64) -> Self {
-        self.travel_time = Some(time);
-        self
-    }
 
     pub fn build(self, movement: &Movement) -> Route {
         let distance = match self.distance {
@@ -289,8 +281,8 @@ impl<'a> RouteBuilder<'a> {
             for edge in self.graph.outgoing_edges_for(node1, inner_goal) {
                 if edge.endpoint == node2 {
                     let mut update = false;
-                    if let &Movement::Foot = movement {
-                        if let &RoutingGoal::Speed = goal {
+                    if let Movement::Foot = *movement {
+                        if let RoutingGoal::Speed = *goal {
                             result += edge.weight / 3.0;
                             update = true;
                         }

@@ -19,10 +19,6 @@ impl BoundingBox {
             long_max: f64::MIN,
         }
     }
-    pub fn contains(&self, n: &NodeInfo) -> bool {
-        self.contains_point(n.lat, n.long)
-    }
-
     pub fn contains_point(&self, lat: f64, long: f64) -> bool {
         self.lat_min <= lat && lat <= self.lat_max && self.long_min <= long && long <= self.long_max
     }
