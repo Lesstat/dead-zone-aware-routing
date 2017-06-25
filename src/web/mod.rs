@@ -42,7 +42,6 @@ pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
         properties: None,
         foreign_members: None,
     });
-    println!("dist: {}, time: {} ", route.distance, route.travel_time);
 
     JSON(
         format!(
@@ -190,6 +189,5 @@ impl<'a> Responder<'a> for NodeInfoWithIndex {
 #[get("/<path..>")]
 pub fn serve_files(path: PathBuf) -> Option<NamedFile> {
     let p = Path::new("static/").join(path);
-    println!("Path: {:?}", p);
     NamedFile::open(p).ok()
 }

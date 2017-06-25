@@ -111,6 +111,7 @@ enum OffsetMode {
     Out,
 }
 
+#[derive(Debug)]
 pub enum RoutingGoal {
     Length,
     Speed,

@@ -218,11 +218,12 @@ impl<'a> Dijkstra<'a> {
     }
 }
 
-
+#[derive(Debug)]
 pub enum Movement {
     Car,
     Foot,
 }
+
 type NodeSequence = VecDeque<usize>;
 struct RouteBuilder<'a> {
     distance: Option<Length>,
@@ -270,9 +271,8 @@ impl<'a> RouteBuilder<'a> {
             Movement::Foot => &length,
             Movement::Car => goal,
         };
-        let mut result = 0.0;
-        println!("{:?}", self.node_seq);
 
+        let mut result = 0.0;
         let (node_slice, _) = self.node_seq.as_slices();
 
         for nodes in node_slice.windows(2) {
