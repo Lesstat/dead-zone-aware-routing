@@ -14,7 +14,8 @@
     <div style="float:left; width: 300px;">
       Start ID: <span id="start"></span> <br />
       End ID: <span id="end"></span><br />
-      Distance: <span id="dist"></span> <br />
+      Distance: <span id="dist">0</span> km <br />
+      Travel Time: <span id="time">0</span> h<br />
       Routing: <br />
       Short<input type="radio" name="goal" value="length" checked="checked" onclick="calc_dist()">
       Fast<input type="radio" name="goal" value="speed"   onclick="calc_dist()">
@@ -82,6 +83,7 @@
 	       "opacity": 0.65
 	     };
 	     document.getElementById("dist").innerHTML = xmlhttp.response.distance;
+	     document.getElementById("time").innerHTML = xmlhttp.response.travel_time;
 	     map.removeLayer(geoJson);
 	     geoJson = L.geoJSON(xmlhttp.response.route.geometry, { style: myStyle }).addTo(map);
 	   }

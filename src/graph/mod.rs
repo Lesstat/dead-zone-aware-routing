@@ -99,7 +99,7 @@ impl NodeOffset {
 
 #[derive(HeapSizeOf)]
 pub struct Graph {
-    node_info: Vec<NodeInfo>,
+    pub node_info: Vec<NodeInfo>,
     node_offsets: Vec<NodeOffset>,
     length_edges: HalfEdges,
     speed_edges: HalfEdges,
@@ -226,7 +226,6 @@ impl Graph {
             in_edges: s_in_edges,
             out_edges: s_out_edges,
         };
-
         (node_offsets, length_edges, speed_edges)
     }
     fn create_half_edges(edges: &[EdgeInfo], mode: OffsetMode, goal: RoutingGoal) -> Vec<HalfEdge> {
@@ -265,7 +264,6 @@ impl Graph {
                             for_cars: e.for_cars,
                             for_pedestrians: e.for_pedestrians,
                         }
-
                     })
                     .collect()
             }
@@ -348,7 +346,7 @@ fn graph_creation() {
             },
             HalfEdge {
                 endpoint: 4,
-                weight: 22792.151483921476,
+                weight: 15.718725161325155,
                 for_cars: true,
                 for_pedestrians: true,
             },

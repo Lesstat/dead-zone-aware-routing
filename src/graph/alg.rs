@@ -1,4 +1,4 @@
-use super::{Graph, NodeId, Length, NodeInfo, RoutingGoal};
+use super::{Graph, NodeId, Length, RoutingGoal};
 
 use std::time::Instant;
 use std::cmp::Ordering;
@@ -138,9 +138,10 @@ pub struct Dijkstra<'a> {
     graph: &'a Graph,
 }
 
-pub struct Route<'a> {
+pub struct Route {
     pub distance: Length,
-    pub node_seq: VecDeque<&'a NodeInfo>,
+    pub travel_time: f64,
+    pub node_seq: NodeSequence,
 }
 
 impl<'a> Dijkstra<'a> {
@@ -175,14 +176,13 @@ impl<'a> Dijkstra<'a> {
                 let mut path = VecDeque::new();
                 let mut cur = node;
                 while cur != source {
-                    path.push_front(&self.graph.node_info[cur]);
+                    path.push_front(cur);
                     cur = prev[cur];
                 }
-                path.push_front(&self.graph.node_info[cur]);
-                return Some(Route {
-                    distance: cost.into_inner(),
-                    node_seq: path,
-                });
+                path.push_front(cur);
+                let b = RouteBuilder::new(path, self.graph);
+                let r = b.build(&movement);
+                return Some(r);
             }
 
             if cost > self.dist[node] {
@@ -211,7 +211,6 @@ impl<'a> Dijkstra<'a> {
                     self.dist[next.node] = next.cost;
                     self.touched.push(next.node);
                     heap.push(next);
-
                 }
             }
         }
@@ -223,4 +222,88 @@ impl<'a> Dijkstra<'a> {
 pub enum Movement {
     Car,
     Foot,
+}
+type NodeSequence = VecDeque<usize>;
+struct RouteBuilder<'a> {
+    distance: Option<Length>,
+    travel_time: Option<f64>,
+    node_seq: NodeSequence,
+    graph: &'a Graph,
+}
+
+impl<'a> RouteBuilder<'a> {
+    pub fn new(node_seq: NodeSequence, graph: &'a Graph) -> RouteBuilder<'a> {
+        RouteBuilder {
+            distance: None,
+            travel_time: None,
+            node_seq,
+            graph,
+        }
+    }
+    pub fn distance(mut self, dist: Length) -> Self {
+        self.distance = Some(dist);
+        self
+    }
+    pub fn travel_time(mut self, time: f64) -> Self {
+        self.travel_time = Some(time);
+        self
+    }
+
+    pub fn build(self, movement: &Movement) -> Route {
+        let distance = match self.distance {
+            Some(d) => d,
+            None => self.calc_dist(),
+        };
+        let travel_time = match self.travel_time {
+            Some(t) => t,
+            None => self.calc_travel_time(movement),
+        };
+        Route {
+            distance,
+            travel_time,
+            node_seq: self.node_seq,
+        }
+    }
+
+    fn calc_dist(&self) -> Length {
+        self.calc(&RoutingGoal::Length, &Movement::Car)
+    }
+    fn calc_travel_time(&self, movement: &Movement) -> f64 {
+        self.calc(&RoutingGoal::Speed, movement)
+
+    }
+    fn calc(&self, goal: &RoutingGoal, movement: &Movement) -> f64 {
+        let length = RoutingGoal::Length;
+        let inner_goal = match *movement {
+            Movement::Foot => &length,
+            Movement::Car => goal,
+        };
+        let mut result = 0.0;
+        println!("{:?}", self.node_seq);
+
+        let (node_slice, _) = self.node_seq.as_slices();
+
+        for nodes in node_slice.windows(2) {
+            let node1 = nodes[0];
+            let node2 = nodes[1];
+            for edge in self.graph.outgoing_edges_for(node1, inner_goal) {
+                if edge.endpoint == node2 {
+                    let mut update = false;
+                    if let &Movement::Foot = movement {
+                        if let &RoutingGoal::Speed = goal {
+                            result += edge.weight / 3.0;
+                            update = true;
+                        }
+                    }
+                    if !update {
+                        result += edge.weight;
+                    }
+
+                    break;
+                }
+            }
+        }
+        result
+
+    }
 }

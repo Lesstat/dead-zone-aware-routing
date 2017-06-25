@@ -15,15 +15,23 @@ use std::str::FromStr;
 #[get("/route?<q>")]
 pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
     let mut d = graph.dijkstra();
-    let dist = d.distance(q.s, q.t, q.goal, q.movement);
-    let dist = match dist {
-        Some(d) => d,
-        None => return JSON("{{ \"distance\": 0, \"route\": [] }}".to_string()),
+    let route = d.distance(q.s, q.t, q.goal, q.movement);
+    let route = match route {
+        Some(r) => r,
+        None => {
+            return JSON(
+                "{\"distance\": 0, \"travel_time\": 0, \"route\": []}".to_string(),
+            )
+        }
     };
     let geometry = Geometry::new(Value::LineString(
-        dist.node_seq
+        route
+            .node_seq
             .iter()
-            .map(|node| vec![node.long, node.lat])
+            .map(|&n| {
+                let node = &graph.node_info[n];
+                vec![node.long, node.lat]
+            })
             .collect(),
     ));
 
@@ -34,10 +42,15 @@ pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
         properties: None,
         foreign_members: None,
     });
+    println!("dist: {}, time: {} ", route.distance, route.travel_time);
+
     JSON(
         format!(
-            "{{ \"distance\": {},  \"route\": {} }}",
-            dist.distance,
+            "{{ \"distance\": {:.*}, \"travel_time\": {:.*},   \"route\": {} }}",
+            2,
+            route.distance,
+            2,
+            route.travel_time,
             geo.to_string()
         ).to_string(),
     )
