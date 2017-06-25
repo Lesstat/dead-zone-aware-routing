@@ -113,6 +113,8 @@ fn is_not_for_cars(way: &Way) -> bool {
         Some("path") |
         Some("cycleway") |
         Some("track") |
+        Some("proposed") |
+        Some("construction") |
         Some("pedestrian") => true,
         _ => false,
     }
@@ -131,7 +133,11 @@ fn is_not_for_pedestrians(way: &Way) -> bool {
         return false;
     }
     match street_type {
-        Some("motorway") | Some("trunk") | Some("primary") => true,
+        Some("motorway") |
+        Some("trunk") |
+        Some("proposed") |
+        Some("construction") |
+        Some("primary") => true,
         _ => false,
     }
 
