@@ -42,19 +42,21 @@
      
       function onMapClick(e) {
 	var id;
-	if (start){
-	  id = "start";
-	  startPopup.setLatLng(e.latlng).setContent("Start at " + e.latlng.toString()).addTo(map);
-	} else{
-	  id = "end"
-	  endPopup.setLatLng(e.latlng).setContent("End at " + e.latlng.toString()).addTo(map);
-	}
-	start = !start;
+	id = "start";
+	startPopup.setLatLng(e.latlng).setContent("Start at " + e.latlng.toString()).addTo(map);
 	get_node(id, e.latlng) ;
+     }
+
+     function onRightClick(e){
+	var id;
+       id = "end"
+       endPopup.setLatLng(e.latlng).setContent("End at " + e.latlng.toString()).addTo(map);
+       get_node(id, e.latlng) ;
      }
 
      
      map.on('click', onMapClick);
+     map.on('contextmenu', onRightClick);
      
      function get_node(id, latlng){
        
