@@ -154,14 +154,6 @@ impl Grid {
 #[derive(Debug, Clone)]
 pub struct NodeInfoWithIndex(pub usize, pub NodeInfo);
 
-#[test]
-fn add_node_to_bounding_box() {
-    let mut b = BoundingBox::new();
-    let n = NodeInfo::new(1, 1.1, 1.2, 0);
-    assert!(!b.contains(&n));
-    b.add_node(&n);
-    assert!(b.contains(&n));
-}
 
 #[test]
 fn converting_coord_to_index() {
