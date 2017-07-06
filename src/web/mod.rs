@@ -186,7 +186,7 @@ impl<'a> Responder<'a> for NodeInfoWithIndex {
     }
 }
 
-#[get("/<path..>")]
+#[get("/files/<path..>")]
 pub fn serve_files(path: PathBuf) -> Option<NamedFile> {
     let p = Path::new("static/").join(path);
     NamedFile::open(p).ok()

@@ -68,7 +68,7 @@
 	     calc_dist();
 	   }
        };
-       xmlhttp.open("GET", "node_at?lat="+ latlng.lat  + "&long=" + latlng.lng, true);
+       xmlhttp.open("GET", "/node_at?lat="+ latlng.lat  + "&long=" + latlng.lng, true);
        xmlhttp.send();
      }
 
@@ -97,7 +97,7 @@
        var move = document.querySelector('input[name="move"]:checked').value;
        var s = document.getElementById("start").innerHTML;
        var t = document.getElementById("end").innerHTML;
-       xmlhttp.open("GET", "route?s="+ s  + "&t=" + t+ "&goal=" + goal + "&move=" + move, true);
+       xmlhttp.open("GET", "/route?s="+ s  + "&t=" + t+ "&goal=" + goal + "&move=" + move, true);
        xmlhttp.send();
      }
     </script>
