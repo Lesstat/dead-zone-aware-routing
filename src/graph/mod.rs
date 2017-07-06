@@ -71,7 +71,8 @@ impl EdgeInfo {
 #[derive(HeapSizeOf, Debug, PartialEq)]
 pub struct HalfEdge {
     endpoint: NodeId,
-    weight: f64,
+    length: f64,
+    time: f64,
     for_cars: bool,
     for_pedestrians: bool,
 }
@@ -101,8 +102,7 @@ impl NodeOffset {
 pub struct Graph {
     pub node_info: Vec<NodeInfo>,
     node_offsets: Vec<NodeOffset>,
-    length_edges: HalfEdges,
-    speed_edges: HalfEdges,
+    edges: HalfEdges,
     grid: Grid,
 }
 
@@ -122,38 +122,29 @@ impl Graph {
         let grid = Grid::new(&mut node_info, 100);
         Graph::map_edges_to_node_index(&node_info, &mut edges);
         let node_count = node_info.len();
-        let (node_offsets, length_edges, speed_edges) = Graph::calc_node_offsets(node_count, edges);
+        let (node_offsets, edges) = Graph::calc_node_offsets(node_count, edges);
 
         Graph {
             node_info,
             node_offsets,
-            length_edges,
-            speed_edges,
+            edges,
             grid,
         }
 
     }
 
-    pub fn outgoing_edges_for(&self, id: NodeId, goal: &RoutingGoal) -> &[HalfEdge] {
-        let out_edges = match *goal {
-            RoutingGoal::Length => &self.length_edges.out_edges,
-            RoutingGoal::Speed => &self.speed_edges.out_edges,
-        };
-        &out_edges[self.node_offsets[id].out_start..self.node_offsets[id + 1].out_start]
+    pub fn outgoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
+        &self.edges.out_edges[self.node_offsets[id].out_start..self.node_offsets[id + 1].out_start]
     }
 
-    pub fn ingoing_edges_for(&self, id: NodeId, goal: &RoutingGoal) -> &[HalfEdge] {
-        let in_edges = match *goal {
-            RoutingGoal::Length => &self.length_edges.in_edges,
-            RoutingGoal::Speed => &self.speed_edges.in_edges,
-        };
-        &in_edges[self.node_offsets[id].in_start..self.node_offsets[id + 1].in_start]
+    pub fn ingoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
+        &self.edges.in_edges[self.node_offsets[id].in_start..self.node_offsets[id + 1].in_start]
     }
 
     fn calc_node_offsets(
         node_count: usize,
         mut edges: Vec<EdgeInfo>,
-    ) -> (Vec<NodeOffset>, HalfEdges, HalfEdges) {
+    ) -> (Vec<NodeOffset>, HalfEdges) {
         use std::cmp::Ordering;
 
         fn calc_offset_inner(
@@ -207,8 +198,7 @@ impl Graph {
         edges.dedup_by_key(|edge| (edge.source, edge.dest));
 
         calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::Out);
-        let l_out_edges = Graph::create_half_edges(&edges, OffsetMode::Out, RoutingGoal::Length);
-        let s_out_edges = Graph::create_half_edges(&edges, OffsetMode::Out, RoutingGoal::Speed);
+        let out_edges = Graph::create_half_edges(&edges, OffsetMode::Out);
 
         edges.sort_by(|a, b| {
             let ord = a.dest.cmp(&b.dest);
@@ -218,20 +208,15 @@ impl Graph {
             }
         });
         calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::In);
-        let l_in_edges = Graph::create_half_edges(&edges, OffsetMode::In, RoutingGoal::Length);
-        let s_in_edges = Graph::create_half_edges(&edges, OffsetMode::In, RoutingGoal::Speed);
+        let in_edges = Graph::create_half_edges(&edges, OffsetMode::In);
 
-        let length_edges = HalfEdges {
-            in_edges: l_in_edges,
-            out_edges: l_out_edges,
+        let edges = HalfEdges {
+            in_edges,
+            out_edges,
         };
-        let speed_edges = HalfEdges {
-            in_edges: s_in_edges,
-            out_edges: s_out_edges,
-        };
-        (node_offsets, length_edges, speed_edges)
+        (node_offsets, edges)
     }
-    fn create_half_edges(edges: &[EdgeInfo], mode: OffsetMode, goal: RoutingGoal) -> Vec<HalfEdge> {
+    fn create_half_edges(edges: &[EdgeInfo], mode: OffsetMode) -> Vec<HalfEdge> {
         match mode {
 
             OffsetMode::In => {
@@ -239,13 +224,10 @@ impl Graph {
                     .iter()
                     .map(|e| {
 
-                        let weight = match goal {
-                            RoutingGoal::Length => e.length,
-                            RoutingGoal::Speed => e.length / e.speed as f64,
-                        };
                         HalfEdge {
                             endpoint: e.source,
-                            weight,
+                            length: e.length,
+                            time: e.length / e.speed as f64,
                             for_cars: e.for_cars,
                             for_pedestrians: e.for_pedestrians,
                         }
@@ -257,13 +239,10 @@ impl Graph {
                 edges
                     .iter()
                     .map(|e| {
-                        let weight = match goal {
-                            RoutingGoal::Length => e.length,
-                            RoutingGoal::Speed => e.length / e.speed as f64,
-                        };
                         HalfEdge {
                             endpoint: e.dest,
-                            weight,
+                            length: e.length,
+                            time: e.length / e.speed as f64,
                             for_cars: e.for_cars,
                             for_pedestrians: e.for_pedestrians,
                         }
@@ -337,19 +316,21 @@ fn graph_creation() {
     assert_eq!(g.node_offsets.len(), exp.len());
     assert_eq!(g.node_offsets, exp);
 
-    assert_eq!(g.outgoing_edges_for(0, &RoutingGoal::Length).len(), 3);
+    assert_eq!(g.outgoing_edges_for(0).len(), 3);
     assert_eq!(
-        g.outgoing_edges_for(2, &RoutingGoal::Length),
+        g.outgoing_edges_for(2),
         &[
             HalfEdge {
                 endpoint: 3,
-                weight: 0.0,
+                length: 0.0,
+                time: 0.0,
                 for_cars: true,
                 for_pedestrians: true,
             },
             HalfEdge {
                 endpoint: 4,
-                weight: 15.718725161325155,
+                length: 15.718725161325155,
+                time: 15.718725161325155,
                 for_cars: true,
                 for_pedestrians: true,
             },
