@@ -204,6 +204,8 @@ impl Graph {
                 _ => ord,
             }
         });
+        edges.dedup_by_key(|edge| (edge.source, edge.dest));
+
         calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::Out);
         let l_out_edges = Graph::create_half_edges(&edges, OffsetMode::Out, RoutingGoal::Length);
         let s_out_edges = Graph::create_half_edges(&edges, OffsetMode::Out, RoutingGoal::Speed);
