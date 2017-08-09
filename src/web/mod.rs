@@ -1,5 +1,5 @@
 use super::graph::{NodeId, Graph, RoutingGoal, Movement};
-use super::grid::NodeInfoWithIndex;
+use super::grid::{BoundingBox, NodeInfoWithIndex};
 
 use rocket::State;
 use rocket::request::{FormItems, FromForm, Request};
@@ -10,6 +10,49 @@ use geojson::{Value, Geometry, Feature, GeoJson};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+
+
+#[get("/towers?<bbox>")]
+pub fn towers(bbox: BoundingBox) -> ::std::io::Result<Json<String>> {
+    use std::io::{BufRead, BufReader};
+    use std::fs::File;
+
+    let mut result = String::new();
+    let mut file = BufReader::new(File::open(
+        "/home/flo/workspaces/rust/graphdata/towers_ger_sample_100_range_10k.csv",
+    )?);
+    let mut line = String::new();
+    file.read_line(&mut line)?;
+    line.clear();
+
+    result.push_str("[");
+    while let Ok(count) = file.read_line(&mut line) {
+        if count == 0 {
+            break;
+        }
+
+        {
+            let mut splitter = line.split(',');
+            let lon = splitter.nth(6).unwrap();
+            let lat = splitter.next().unwrap();
+            let range = splitter.next().unwrap();
+            if bbox.contains_point(lat.parse().unwrap(), lon.parse().unwrap()) {
+                result.push_str(&format!(
+                    "{{ \"lon\":{}, \"lat\":{}, \"range\":{} }},",
+                    lon,
+                    lat,
+                    range
+                ));
+            }
+        }
+        line.clear();
+    }
+    result.pop();
+    result.push(']');
+    Ok(Json(result))
+
+}
 
 
 #[get("/route?<q>")]

@@ -22,6 +22,7 @@
       <br />
       Car<input type="radio" name="move" value="car"  checked="checked" onclick="calc_dist()">
       Foot<input type="radio" name="move" value="foot"   onclick="calc_dist()">
+      <input type="button" onclick="render_towers()" text="Towers" />
     </div>
     <div id="mapid" style="width: 80%; height: 800px;"></div>
     <script>
@@ -32,7 +33,7 @@
      var startPopup = L.popup({ autoClose: false });
      var endPopup = L.popup({ autoClose: false });
      var geoJson = L.geoJSON().addTo(map);
-     
+
      L.tileLayer('http://{s}.tile.openstreetmap.org/{id}/{z}/{x}/{y}.png', {
        maxZoom: 18,
        attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
@@ -98,6 +99,28 @@
        var s = document.getElementById("start").innerHTML;
        var t = document.getElementById("end").innerHTML;
        xmlhttp.open("GET", "/route?s="+ s  + "&t=" + t+ "&goal=" + goal + "&move=" + move, true);
+       xmlhttp.send();
+     }
+
+     function render_towers(){
+
+       var xmlhttp = new XMLHttpRequest();
+       
+       console.log("loading towers");
+       xmlhttp.responseType = 'json';
+       xmlhttp.onload = function() {
+	 if (xmlhttp.status == 200) {
+	   xmlhttp.response.forEach(function(item, index, array) {
+	     L.circle([item.lat, item.lon], { radius: item.range }).addTo(map);
+	   });
+	   }
+       };
+       var bounds = map.getBounds();
+       var latMin = bounds.getSouth();
+       var latMax = bounds.getNorth();
+       var longMin = bounds.getWest();
+       var longMax = bounds.getEast();
+       xmlhttp.open("GET", "/towers?lat_min="+ latMin + "&lat_max=" + latMax + "&long_min="+ longMin + "&long_max=" + longMax , true);
        xmlhttp.send();
      }
     </script>

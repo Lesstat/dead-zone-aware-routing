@@ -2,7 +2,7 @@ use super::graph::{NodeInfo, NodeId};
 
 mod radius;
 
-#[derive(Debug, HeapSizeOf)]
+#[derive(Debug, HeapSizeOf, FromForm)]
 pub struct BoundingBox {
     lat_min: f64,
     lat_max: f64,
