@@ -20,6 +20,7 @@ fn main() {
                 fapra::web::route,
                 fapra::web::next_node_to,
                 fapra::web::serve_files,
+                fapra::web::towers,
             ],
         )
         .manage(g)

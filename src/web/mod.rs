@@ -2,9 +2,9 @@ use super::graph::{NodeId, Graph, RoutingGoal, Movement};
 use super::grid::NodeInfoWithIndex;
 
 use rocket::State;
-use rocket::request::{FormItems, FromForm};
+use rocket::request::{FormItems, FromForm, Request};
 use rocket::response::{self, Response, Responder, NamedFile};
-use rocket::response::content::JSON;
+use rocket::response::content::Json;
 use geojson::{Value, Geometry, Feature, GeoJson};
 
 use std::io::Cursor;
@@ -13,13 +13,13 @@ use std::str::FromStr;
 
 
 #[get("/route?<q>")]
-pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
+pub fn route(q: DijkQuery, graph: State<Graph>) -> Json<String> {
     let mut d = graph.dijkstra();
     let route = d.distance(q.s, q.t, q.goal, q.movement);
     let route = match route {
         Some(r) => r,
         None => {
-            return JSON(
+            return Json(
                 "{\"distance\": 0, \"travel_time\": 0, \"route\": []}".to_string(),
             )
         }
@@ -43,7 +43,7 @@ pub fn route(q: DijkQuery, graph: State<Graph>) -> JSON<String> {
         foreign_members: None,
     });
 
-    JSON(
+    Json(
         format!(
             "{{ \"distance\": {:.*}, \"travel_time\": {:.*},   \"route\": {} }}",
             2,
@@ -73,14 +73,14 @@ impl<'f> FromForm<'f> for DijkQuery {
 
     /// Parses an instance of `Self` from the form items or returns an `Error`
     /// if one cannot be parsed.
-    fn from_form_items(form_items: &mut FormItems<'f>) -> Result<Self, Self::Error> {
+    fn from_form(form_items: &mut FormItems<'f>, _: bool) -> Result<Self, Self::Error> {
         let mut s: NodeId = ::std::usize::MAX;
         let mut t: NodeId = ::std::usize::MAX;
         let mut goal = RoutingGoal::Length;
         let mut movement = Movement::Car;
         for item in form_items {
 
-            match item.0 {
+            match item.0.as_str() {
                 "s" => s = item.1.parse()?,
                 "t" => t = item.1.parse()?,
                 "goal" => goal = item.1.parse()?,
@@ -152,7 +152,7 @@ impl<'f> FromForm<'f> for NNQuery {
 
     /// Parses an instance of `Self` from the form items or returns an `Error`
     /// if one cannot be parsed.
-    fn from_form_items(form_items: &mut FormItems<'f>) -> Result<Self, Self::Error> {
+    fn from_form(form_items: &mut FormItems<'f>, _: bool) -> Result<Self, Self::Error> {
         use std::f64;
         let mut lat: f64 = f64::MAX;
         let mut long: f64 = f64::MAX;
@@ -178,7 +178,7 @@ impl<'f> FromForm<'f> for NNQuery {
 
 
 impl<'a> Responder<'a> for NodeInfoWithIndex {
-    fn respond(self) -> response::Result<'a> {
+    fn respond_to(self, _: &Request) -> response::Result<'a> {
         Response::build()
             .sized_body(Cursor::new(format!("{}", self.0)))
             .ok()
