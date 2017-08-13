@@ -1,62 +1,123 @@
 use std::f64::consts::PI;
+use std::f64::EPSILON;
 
-pub fn project(point: (f64, f64), lat0: f64) -> (f64, f64) {
+use graph::Length;
+
+pub trait Coord {
+    fn lat(&self) -> f64;
+    fn lon(&self) -> f64;
+}
+
+pub trait Point {
+    fn x(&self) -> f64;
+    fn y(&self) -> f64;
+}
+
+pub type TuplePoint = (f64, f64);
+
+impl Point for TuplePoint {
+    #[inline]
+    fn x(&self) -> f64 {
+        self.0
+    }
+    #[inline]
+    fn y(&self) -> f64 {
+        self.1
+    }
+}
+
+pub fn project<C: Coord>(point: &C, lat0: f64) -> TuplePoint {
     let degree = 2.0 * PI / 360.0;
     let radius = 6371007.2; // meters
-    let point = (point.0 * degree, point.1 * degree);
+    let point = (point.lat() * degree, point.lon() * degree);
 
     (radius * point.0, radius * lat0.cos() * point.1)
 }
 
 
-pub fn intersect(a: (f64, f64), b: (f64, f64), center: (f64, f64), r: f64) -> Vec<f64> {
-    let mut result = Vec::new();
-    let m = (b.1 - a.1) / (b.0 - a.0);
-
-    let c = a.1 + m * (-a.0);
+pub fn intersect<P: Point>(a: &P, b: &P, center: &P, r: f64) -> SegmentSection {
+    assert!((b.x() - a.x()).abs() >= EPSILON);
+    let m = (b.y() - a.y()) / (b.x() - a.x());
+    let c = a.y() + m * (-a.x());
     let a_quad = m * m + 1.0;
-    let b_quad = -2.0 * center.0 + (c - center.1) * 2.0 * m;
-    let c_quad = c * c + center.1 * center.1 - 2.0 * c * center.1 - r * r + center.0 * center.0;
+    let b_quad = -2.0 * center.x() + (c - center.y()) * 2.0 * m;
+    let c_quad = c * c + center.y() * center.y() - 2.0 * c * center.y() - r * r +
+        center.x() * center.x();
     let d_quad = b_quad * b_quad - 4.0 * a_quad * c_quad;
-    println!(
-        "m: {}, c:{}, A:{}, B:{}, C:{}, D: {}",
-        m,
-        c,
-        a_quad,
-        b_quad,
-        c_quad,
-        d_quad
-    );
+
     if d_quad > 0.0 {
         let x1 = (-b_quad + d_quad.sqrt()) / (2.0 * a_quad);
         let x2 = (-b_quad - d_quad.sqrt()) / (2.0 * a_quad);
-        //let y1 = m * x1 + c;
-        //let y2 = m * x2 + c;
-        let t1 = (x1 - a.0) / (b.0 - a.0);
-        let t2 = (x2 - a.0) / (b.0 - a.0);
+        let t1 = (x1 - a.x()) / (b.x() - a.x());
+        let t2 = (x2 - a.x()) / (b.x() - a.x());
+        return SegmentSection::new(t1, t2);
+    }
+    SegmentSection::empty()
 
-        println!("x1: {}, x2: {}, t1: {}, t2: {}", x1, x2, t1, t2);
-        if t1 >= 0.0 && t1 <= 1.0 {
-            result.push(t1);
-        }
-        if t2 >= 0.0 && t2 <= 2.0 {
-            result.push(t2);
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SegmentSection {
+    start: f64,
+    end: f64,
+}
+
+impl SegmentSection {
+    fn empty() -> SegmentSection {
+        SegmentSection {
+            start: 0.0,
+            end: 0.0,
         }
     }
 
-
-    result
+    fn new(first: f64, second: f64) -> SegmentSection {
+        let start = SegmentSection::normalize(first.min(second));
+        let end = SegmentSection::normalize(first.max(second));
+        SegmentSection { start, end }
+    }
+    fn normalize(value: f64) -> f64 {
+        if value < 0.0 {
+            0.0
+        } else if value > 1.0 {
+            1.0
+        } else {
+            value
+        }
+    }
+    #[allow(dead_code)]
+    fn is_empty(&self) -> bool {
+        self.end - self.start <= 0.0
+    }
 }
 
 
 #[test]
 fn empty_circle_segment_intersection() {
-    let result = intersect((1.0, 1.0), (2.0, 2.0), (5.0, 5.0), 1.0);
-    assert_eq!(0, result.len());
+    let result = intersect(&(1.0, 1.0), &(2.0, 2.0), &(5.0, 5.0), 1.0);
+    assert_eq!(true, result.is_empty());
 }
 
 #[test]
-fn one_circle_segment_intersection() {
-    let result = intersect((1.0, 1.0), (2.0, 2.0), (3.0, 2.0), 1.0);
-    assert_eq!(vec![1.0], result);
+fn circle_touches_segment_intersection() {
+    let result = intersect(&(1.0, 1.0), &(2.0, 2.0), &(3.0, 2.0), 1.0);
+    assert_eq!(true, result.is_empty());
+}
+#[test]
+fn circle_intersects_in_middle_of_segment() {
+    let result = intersect(&(1.0, 1.0), &(5.0, 1.0), &(3.0, 1.0), 1.0);
+    assert_eq!(SegmentSection::new(0.25, 0.75), result);
+    assert_eq!(false, result.is_empty());
+}
+
+#[test]
+fn circle_includes_segment() {
+    let result = intersect(&(1.0, 1.0), &(2.0, 2.0), &(3.0, 2.0), 10.0);
+    assert_eq!(SegmentSection::new(0.0, 1.0), result);
+    assert_eq!(false, result.is_empty());
+}
+#[test]
+fn circle_includes_one_endpoint() {
+    let result = intersect(&(1.0, 1.0), &(2.0, 1.0), &(1.0, 1.0), 0.5);
+    assert_eq!(SegmentSection::new(0.0, 0.5), result);
+    assert_eq!(false, result.is_empty());
 }
