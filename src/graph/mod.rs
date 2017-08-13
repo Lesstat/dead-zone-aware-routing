@@ -1,8 +1,8 @@
 mod alg;
 
 pub use self::alg::Movement;
-use super::grid::{Grid, NodeInfoWithIndex};
-use super::geom::{Coord, haversine_distance};
+use grid::{Grid, NodeInfoWithIndex};
+use geom::{Coord, haversine_distance};
 use towers::*;
 
 use std::time::Instant;
@@ -277,7 +277,9 @@ impl Graph {
 
     fn map_edges_to_node_index(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
         use std::collections::hash_map::HashMap;
-        let towers = load_towers("/home/flo/workspaces/rust/graphdata/o2_towers.csv").unwrap();
+        let mut towers = load_towers("/home/flo/workspaces/rust/graphdata/o2_towers.csv")
+            .expect("tower loading failed");
+        let grid = Grid::new(&mut towers, 100);
 
         let map: HashMap<OsmNodeId, (usize, &NodeInfo)> =
             nodes.iter().enumerate().map(|n| (n.1.osm_id, n)).collect();
@@ -288,7 +290,12 @@ impl Graph {
             e.source = source_id;
             e.dest = dest_id;
             e.length = haversine_distance(source, dest);
-            e.coverage = edge_coverage(source, dest, &towers);
+            e.coverage = edge_coverage(
+                source,
+                dest,
+                grid.adjacent_towers(source, 10.0, &towers)
+                    .unwrap_or_default(),
+            );
         });
 
         let load_end = Instant::now();

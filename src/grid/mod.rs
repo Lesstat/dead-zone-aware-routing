@@ -1,6 +1,6 @@
 use graph::NodeInfo;
 use geom::{Coord, haversine_distance};
-
+use towers::Tower;
 
 mod radius;
 
@@ -160,6 +160,49 @@ impl Grid {
         } else {
             Err(())
         }
+    }
+    pub fn adjacent_towers<'a, C: Coord>(
+        &self,
+        coords: &C,
+        max_dist: f64,
+        towers: &'a [Tower],
+    ) -> Result<Vec<::std::slice::Iter<'a, Tower>>, ()> {
+        let cell_width = haversine_distance(&(self.b_box.lat_max, self.b_box.long_max), &(
+            self.b_box
+                .lat_min,
+            self.b_box
+                .long_max,
+        )) / self.side_length as f64;
+        let cell_height = haversine_distance(&(self.b_box.lat_max, self.b_box.long_max), &(
+            self.b_box
+                .lat_max,
+            self.b_box
+                .long_min,
+        )) / self.side_length as f64;
+        let cell_measure = cell_width.min(cell_height);
+        let mut radius = 0;
+
+        let index = self.coord_to_index(coords.lat(), coords.lon())?;
+        let mut result = Vec::new();
+        loop {
+            let max_min_dist = (radius as f64 - 1.0) * cell_measure;
+            if max_min_dist > max_dist {
+                break;
+            }
+            let radius_iter =
+                radius::RadiusIter::new(index as isize, self.side_length as isize, radius);
+            radius += 1;
+            for index in radius_iter {
+                let start = self.offset_array[index];
+                let end = self.offset_array[index + 1];
+                let iter = towers[start..end].iter();
+                result.push(iter);
+
+            }
+
+
+        }
+        Ok(result)
     }
 }
 

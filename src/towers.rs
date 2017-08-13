@@ -33,11 +33,18 @@ enum TowerType {
     GSM,
 }
 
-pub fn edge_coverage(s: &NodeInfo, t: &NodeInfo, towers: &[Tower]) -> f64 {
+pub fn edge_coverage<'a, I: Iterator<Item = &'a Tower>>(
+    s: &NodeInfo,
+    t: &NodeInfo,
+    towers: Vec<I>,
+) -> f64 {
     let mut skip_count = 0;
+    let mut tower_count = 0;
     let mut sections: Vec<_> = towers
-        .iter()
+        .into_iter()
+        .flat_map(|iter| iter)
         .filter_map(|tower| {
+            tower_count += 1;
             let s = project(s, tower.lat);
             let t = project(t, tower.lat);
             if (t.x() - s.x()).abs() < ::std::f64::EPSILON {
@@ -65,7 +72,6 @@ pub fn edge_coverage(s: &NodeInfo, t: &NodeInfo, towers: &[Tower]) -> f64 {
         }
         acc
     });
-
 
     let res = sections.iter().fold(0.0, |acc, sec| acc + sec.length());
     assert!(res <= 1.0 && res >= 0.0);
