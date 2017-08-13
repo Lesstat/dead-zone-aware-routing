@@ -5,6 +5,8 @@ use ordered_float::OrderedFloat;
 
 use graph::Length;
 
+const EARTH_RADIUS: f64 = 6371.0;
+
 pub trait Coord {
     fn lat(&self) -> f64;
     fn lon(&self) -> f64;
@@ -41,10 +43,9 @@ impl Coord for TuplePoint {
 
 pub fn project<C: Coord>(point: &C, lat0: f64) -> TuplePoint {
     let degree = 2.0 * PI / 360.0;
-    let radius = 6371007.2; // meters
     let point = (point.lat() * degree, point.lon() * degree);
 
-    (radius * point.0, radius * lat0.cos() * point.1)
+    (EARTH_RADIUS * point.0, EARTH_RADIUS * lat0.cos() * point.1)
 }
 
 
@@ -139,7 +140,7 @@ pub fn haversine_distance<C1: Coord, C2: Coord>(a: &C1, b: &C2) -> Length {
         theta1.cos() * theta2.cos() * (delta_lambda / 2.0).sin().powi(2);
     let c = 2.0 * a.sqrt().asin();
     // WGS84 equatorial radius is 6378137.0
-    6371.0 * c
+    EARTH_RADIUS * c
 }
 
 #[test]

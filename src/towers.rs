@@ -12,7 +12,7 @@ pub struct Tower {
     radio: TowerType,
     lat: Latitude,
     lon: Longitude,
-    range: usize,
+    range: f64,
 }
 
 impl Coord for Tower {
@@ -82,7 +82,9 @@ pub fn load_towers<P: AsRef<Path>>(path: P) -> Result<Vec<Tower>, Box<Error>> {
     let mut reader = Reader::from_path(path)?;
     let mut result = Vec::new();
     for res in reader.deserialize() {
-        result.push(res?);
+        let mut tower: Tower = res?;
+        tower.range /= 1000.0; //convert range into km
+        result.push(tower);
     }
     Ok(result)
 }
