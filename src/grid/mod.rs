@@ -1,4 +1,5 @@
 use super::graph::{NodeInfo, NodeId};
+use super::geom::haversine_distance;
 
 mod radius;
 
@@ -113,8 +114,18 @@ impl Grid {
     ) -> Result<NodeInfoWithIndex, ()> {
         use std::{f64, usize};
 
-        let cell_width = (self.b_box.lat_max - self.b_box.lat_min) / self.side_length as f64;
-        let cell_height = (self.b_box.long_max - self.b_box.long_min) / self.side_length as f64;
+        let cell_width = haversine_distance(&(self.b_box.lat_max, self.b_box.long_max), &(
+            self.b_box
+                .lat_min,
+            self.b_box
+                .long_max,
+        )) / self.side_length as f64;
+        let cell_height = haversine_distance(&(self.b_box.lat_max, self.b_box.long_max), &(
+            self.b_box
+                .lat_max,
+            self.b_box
+                .long_min,
+        )) / self.side_length as f64;
         let cell_measure = cell_width.min(cell_height);
         let mut radius = 0;
 
@@ -134,7 +145,7 @@ impl Grid {
                 let end = self.offset_array[index + 1];
 
                 for (i, n) in nodes[start..end].iter().enumerate() {
-                    let dist = (lat - n.lat).powi(2) + (long - n.long).powi(2);
+                    let dist = haversine_distance(&(lat, long), n);
                     if dist < min_dist {
                         min_dist = dist;
                         min_index = start + i;

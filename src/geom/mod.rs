@@ -26,6 +26,17 @@ impl Point for TuplePoint {
     }
 }
 
+impl Coord for TuplePoint {
+    #[inline]
+    fn lat(&self) -> f64 {
+        self.0
+    }
+    #[inline]
+    fn lon(&self) -> f64 {
+        self.1
+    }
+}
+
 pub fn project<C: Coord>(point: &C, lat0: f64) -> TuplePoint {
     let degree = 2.0 * PI / 360.0;
     let radius = 6371007.2; // meters
@@ -91,7 +102,7 @@ impl SegmentSection {
 }
 
 // Adapted from https://github.com/georust/rust-geo
-pub fn haversine_distance<C: Coord>(a: &C, b: &C) -> Length {
+pub fn haversine_distance<C1: Coord, C2: Coord>(a: &C1, b: &C2) -> Length {
     let theta1 = a.lat().to_radians();
     let theta2 = b.lat().to_radians();
     let delta_theta = (b.lat() - a.lat()).to_radians();
