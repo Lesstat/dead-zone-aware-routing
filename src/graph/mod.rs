@@ -2,6 +2,7 @@ mod alg;
 
 pub use self::alg::Movement;
 use super::grid::{Grid, NodeInfoWithIndex};
+use super::geom::{Coord, haversine_distance};
 
 
 pub type NodeId = usize;
@@ -46,6 +47,17 @@ pub struct EdgeInfo {
     speed: Speed,
     for_cars: bool,
     for_pedestrians: bool,
+}
+
+impl Coord for NodeInfo {
+    #[inline]
+    fn lat(&self) -> f64 {
+        self.lat
+    }
+    #[inline]
+    fn lon(&self) -> f64 {
+        self.long
+    }
 }
 
 impl EdgeInfo {
@@ -273,18 +285,6 @@ impl Graph {
     pub fn next_node_to(&self, lat: f64, long: f64) -> Option<NodeInfoWithIndex> {
         self.grid.nearest_neighbor(lat, long, &self.node_info).ok()
     }
-}
-// Adapted from https://github.com/georust/rust-geo
-fn haversine_distance(a: &NodeInfo, b: &NodeInfo) -> Length {
-    let theta1 = a.lat.to_radians();
-    let theta2 = b.lat.to_radians();
-    let delta_theta = (b.lat - a.lat).to_radians();
-    let delta_lambda = (b.long - a.long).to_radians();
-    let a = (delta_theta / 2.0).sin().powi(2) +
-        theta1.cos() * theta2.cos() * (delta_lambda / 2.0).sin().powi(2);
-    let c = 2.0 * a.sqrt().asin();
-    // WGS84 equatorial radius is 6378137.0
-    6371.0 * c
 }
 #[test]
 fn graph_creation() {

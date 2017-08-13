@@ -90,6 +90,18 @@ impl SegmentSection {
     }
 }
 
+// Adapted from https://github.com/georust/rust-geo
+pub fn haversine_distance<C: Coord>(a: &C, b: &C) -> Length {
+    let theta1 = a.lat().to_radians();
+    let theta2 = b.lat().to_radians();
+    let delta_theta = (b.lat() - a.lat()).to_radians();
+    let delta_lambda = (b.lon() - a.lon()).to_radians();
+    let a = (delta_theta / 2.0).sin().powi(2) +
+        theta1.cos() * theta2.cos() * (delta_lambda / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().asin();
+    // WGS84 equatorial radius is 6378137.0
+    6371.0 * c
+}
 
 #[test]
 fn empty_circle_segment_intersection() {
