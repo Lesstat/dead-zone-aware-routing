@@ -49,7 +49,10 @@ pub fn project<C: Coord>(point: &C, lat0: f64) -> TuplePoint {
 
 
 pub fn intersect<P: Point>(a: &P, b: &P, center: &P, r: f64) -> SegmentSection {
-    assert!((b.x() - a.x()).abs() >= EPSILON);
+    assert!(
+        (b.x() - a.x()).abs() >= EPSILON,
+        format!("b.x = {}; a.x={}", b.x(), a.x())
+    );
     let m = (b.y() - a.y()) / (b.x() - a.x());
     let c = a.y() + m * (-a.x());
     let a_quad = m * m + 1.0;

@@ -1,5 +1,5 @@
 use graph::{Longitude, Latitude, NodeInfo};
-use geom::{project, intersect, Coord};
+use geom::{project, intersect, Coord, Point};
 
 use std::path::Path;
 use std::error::Error;
@@ -7,7 +7,7 @@ use std::error::Error;
 use csv::Reader;
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, HeapSizeOf)]
 pub struct Tower {
     radio: TowerType,
     lat: Latitude,
@@ -26,7 +26,7 @@ impl Coord for Tower {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, HeapSizeOf)]
 enum TowerType {
     LTE,
     UMTS,
@@ -34,11 +34,16 @@ enum TowerType {
 }
 
 pub fn edge_coverage(s: &NodeInfo, t: &NodeInfo, towers: &[Tower]) -> f64 {
+    let mut skip_count = 0;
     let mut sections: Vec<_> = towers
         .iter()
         .filter_map(|tower| {
             let s = project(s, tower.lat);
             let t = project(t, tower.lat);
+            if (t.x() - s.x()).abs() < ::std::f64::EPSILON {
+                skip_count += 1;
+                return None;
+            }
             let tower_point = project(tower, tower.lat);
             let sec = intersect(&s, &t, &tower_point, tower.range as f64);
             if sec.is_empty() { None } else { Some(sec) }
@@ -60,7 +65,11 @@ pub fn edge_coverage(s: &NodeInfo, t: &NodeInfo, towers: &[Tower]) -> f64 {
         }
         acc
     });
-    sections.iter().fold(0.0, |acc, sec| acc + sec.length())
+
+
+    let res = sections.iter().fold(0.0, |acc, sec| acc + sec.length());
+    assert!(res <= 1.0 && res >= 0.0);
+    res
 }
 
 pub fn load_towers<P: AsRef<Path>>(path: P) -> Result<Vec<Tower>, Box<Error>> {

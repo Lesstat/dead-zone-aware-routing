@@ -3,7 +3,11 @@ mod alg;
 pub use self::alg::Movement;
 use super::grid::{Grid, NodeInfoWithIndex};
 use super::geom::{Coord, haversine_distance};
+use towers::*;
 
+use std::time::Instant;
+
+use rayon::prelude::*;
 
 pub type NodeId = usize;
 pub type OsmNodeId = usize;
@@ -45,6 +49,7 @@ pub struct EdgeInfo {
     pub dest: NodeId,
     length: Length,
     speed: Speed,
+    coverage: f64,
     for_cars: bool,
     for_pedestrians: bool,
 }
@@ -67,6 +72,7 @@ impl EdgeInfo {
             dest: dest,
             length: length,
             speed: speed,
+            coverage: 0.0,
             for_cars: true,
             for_pedestrians: true,
         }
@@ -271,15 +277,26 @@ impl Graph {
 
     fn map_edges_to_node_index(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
         use std::collections::hash_map::HashMap;
+        let towers = load_towers("/home/flo/workspaces/rust/graphdata/o2_towers.csv").unwrap();
+
         let map: HashMap<OsmNodeId, (usize, &NodeInfo)> =
             nodes.iter().enumerate().map(|n| (n.1.osm_id, n)).collect();
-        for e in edges {
+        let load_start = Instant::now();
+        edges.par_iter_mut().for_each(|e| {
             let (source_id, source) = map[&e.source];
             let (dest_id, dest) = map[&e.dest];
             e.source = source_id;
             e.dest = dest_id;
             e.length = haversine_distance(source, dest);
-        }
+            e.coverage = edge_coverage(source, dest, &towers);
+        });
+
+        let load_end = Instant::now();
+
+        println!(
+            "preprocessed edges in: {:?}",
+            load_end.duration_since(load_start)
+        );
     }
 
     pub fn next_node_to(&self, lat: f64, long: f64) -> Option<NodeInfoWithIndex> {
