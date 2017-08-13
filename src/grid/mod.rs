@@ -1,5 +1,6 @@
-use super::graph::{NodeInfo, NodeId};
-use super::geom::haversine_distance;
+use graph::NodeInfo;
+use geom::{Coord, haversine_distance};
+
 
 mod radius;
 
@@ -25,18 +26,18 @@ impl BoundingBox {
     }
 
 
-    pub fn add_node(&mut self, n: &NodeInfo) {
-        if self.lat_min > n.lat {
-            self.lat_min = n.lat
+    pub fn add_coord<C: Coord>(&mut self, n: &C) {
+        if self.lat_min > n.lat() {
+            self.lat_min = n.lat()
         }
-        if self.long_min > n.long {
-            self.long_min = n.long
+        if self.long_min > n.lon() {
+            self.long_min = n.lon()
         }
-        if self.lat_max < n.lat {
-            self.lat_max = n.lat
+        if self.lat_max < n.lat() {
+            self.lat_max = n.lat()
         }
-        if self.long_max < n.long {
-            self.long_max = n.long
+        if self.long_max < n.lon() {
+            self.long_max = n.lon()
         }
     }
 }
@@ -46,16 +47,16 @@ impl BoundingBox {
 pub struct Grid {
     b_box: BoundingBox,
     side_length: usize,
-    offset_array: Vec<NodeId>,
+    offset_array: Vec<usize>,
 }
 
 impl Grid {
-    pub fn new(nodes: &mut Vec<NodeInfo>, size: usize) -> Grid {
+    pub fn new<C: Coord>(coords: &mut Vec<C>, size: usize) -> Grid {
         let mut b_box = BoundingBox::new();
 
         //dereference and reborrow needed (ugly...)
-        for node in &*nodes {
-            b_box.add_node(node);
+        for coord in &*coords {
+            b_box.add_coord(coord);
         }
         let mut g = Grid {
             b_box: b_box,
@@ -63,11 +64,11 @@ impl Grid {
             offset_array: vec![0; size * size + 1],
         };
 
-        nodes.sort_by_key(|n| g.coord_to_index(n.lat, n.long));
+        coords.sort_by_key(|n| g.coord_to_index(n.lat(), n.lon()));
         let mut current = 0;
-        for (i, n) in nodes.iter().enumerate() {
-            let new_index = g.coord_to_index(n.lat, n.long).expect(
-                "node not in grid area. Something is really wrong",
+        for (i, n) in coords.iter().enumerate() {
+            let new_index = g.coord_to_index(n.lat(), n.lon()).expect(
+                "Coordinate not in grid area. Something is really wrong",
             );
             if new_index != current {
                 for offset in &mut g.offset_array[current + 1..new_index + 1] {
@@ -77,10 +78,10 @@ impl Grid {
             }
         }
         for offset in &mut g.offset_array[current + 1..] {
-            *offset = nodes.len();
+            *offset = coords.len();
         }
         let last_offset = g.offset_array.len() - 1;
-        g.offset_array[last_offset] = nodes.len();
+        g.offset_array[last_offset] = coords.len();
 
         g
     }
