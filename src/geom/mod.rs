@@ -1,6 +1,8 @@
 use std::f64::consts::PI;
 use std::f64::EPSILON;
 
+use ordered_float::OrderedFloat;
+
 use graph::Length;
 
 pub trait Coord {
@@ -67,23 +69,23 @@ pub fn intersect<P: Point>(a: &P, b: &P, center: &P, r: f64) -> SegmentSection {
 
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct SegmentSection {
-    start: f64,
-    end: f64,
+    start: OrderedFloat<f64>,
+    end: OrderedFloat<f64>,
 }
 
 impl SegmentSection {
     fn empty() -> SegmentSection {
         SegmentSection {
-            start: 0.0,
-            end: 0.0,
+            start: 0.0.into(),
+            end: 0.0.into(),
         }
     }
 
     fn new(first: f64, second: f64) -> SegmentSection {
-        let start = SegmentSection::normalize(first.min(second));
-        let end = SegmentSection::normalize(first.max(second));
+        let start = SegmentSection::normalize(first.min(second)).into();
+        let end = SegmentSection::normalize(first.max(second)).into();
         SegmentSection { start, end }
     }
     fn normalize(value: f64) -> f64 {
@@ -95,9 +97,32 @@ impl SegmentSection {
             value
         }
     }
-    #[allow(dead_code)]
-    fn is_empty(&self) -> bool {
-        self.end - self.start <= 0.0
+    pub fn is_empty(&self) -> bool {
+        self.end.into_inner() - self.start.into_inner() <= 0.0
+    }
+    pub fn is_overlapping(&self, other: &Self) -> bool {
+        if self.start < other.start {
+            self.end >= other.start
+        } else {
+            other.end >= self.start
+        }
+
+    }
+    pub fn merge(&self, other: &Self) -> SegmentSection {
+        let start = if self.start < other.start {
+            self.start
+        } else {
+            other.start
+        };
+        let end = if self.end > other.end {
+            self.end
+        } else {
+            other.end
+        };
+        SegmentSection { start, end }
+    }
+    pub fn length(&self) -> f64 {
+        self.end.into_inner() - self.start.into_inner()
     }
 }
 
@@ -143,4 +168,12 @@ fn circle_includes_one_endpoint() {
     let result = intersect(&(1.0, 1.0), &(2.0, 1.0), &(1.0, 1.0), 0.5);
     assert_eq!(SegmentSection::new(0.0, 0.5), result);
     assert_eq!(false, result.is_empty());
+}
+
+#[test]
+fn merge_segments() {
+    let sec1 = SegmentSection::new(0.1, 0.4);
+    let sec2 = SegmentSection::new(0.3, 0.6);
+    assert_eq!(SegmentSection::new(0.1, 0.6), sec1.merge(&sec2));
+    assert_eq!(sec2.merge(&sec1), sec1.merge(&sec2));
 }
