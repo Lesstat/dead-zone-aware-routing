@@ -49,7 +49,6 @@ pub struct EdgeInfo {
     pub dest: NodeId,
     length: Length,
     speed: Speed,
-    coverage: f64,
     for_cars: bool,
     for_pedestrians: bool,
 }
@@ -72,7 +71,6 @@ impl EdgeInfo {
             dest: dest,
             length: length,
             speed: speed,
-            coverage: 0.0,
             for_cars: true,
             for_pedestrians: true,
         }
@@ -112,6 +110,7 @@ pub struct Graph {
     node_offsets: Vec<NodeOffset>,
     pub edges: Vec<HalfEdge>,
     grid: Grid,
+    coverage: Coverage,
 }
 
 #[derive(Debug)]
@@ -123,7 +122,7 @@ pub enum RoutingGoal {
 impl Graph {
     pub fn new(mut node_info: Vec<NodeInfo>, mut edges: Vec<EdgeInfo>) -> Graph {
         let grid = Grid::new(&mut node_info, 100);
-        Graph::map_edges_to_node_index(&node_info, &mut edges);
+        let coverage = Graph::map_edges_to_node_index(&node_info, &mut edges);
         let node_count = node_info.len();
         let (node_offsets, edges) = Graph::calc_node_offsets(node_count, edges);
 
@@ -132,6 +131,7 @@ impl Graph {
             node_offsets,
             edges,
             grid,
+            coverage,
         }
 
     }
@@ -139,10 +139,6 @@ impl Graph {
     pub fn outgoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
         &self.edges[self.node_offsets[id].out_start..self.node_offsets[id + 1].out_start]
     }
-
-    // pub fn ingoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
-    //     &self.edges.in_edges[self.node_offsets[id].in_start..self.node_offsets[id + 1].in_start]
-    // }
 
     fn calc_node_offsets(
         node_count: usize,
@@ -201,35 +197,41 @@ impl Graph {
         self.node_offsets.len()
     }
 
-    fn map_edges_to_node_index(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
+    fn map_edges_to_node_index(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) -> Coverage {
         use std::collections::hash_map::HashMap;
-        let mut towers = load_towers("/home/flo/workspaces/rust/graphdata/o2_towers.csv")
-            .expect("tower loading failed");
+        let mut towers = load_towers(
+            "/home/flo/workspaces/rust/graphdata/towers_ger_sample_100_range_10k_age_1y.csv",
+        ).expect("tower loading failed");
         let grid = Grid::new(&mut towers, 100);
+        let coverage = Coverage::new(edges.len());
 
         let map: HashMap<OsmNodeId, (usize, &NodeInfo)> =
             nodes.iter().enumerate().map(|n| (n.1.osm_id, n)).collect();
+        println!("processing coverage");
         let load_start = Instant::now();
-        edges.par_iter_mut().for_each(|e| {
+        edges.par_iter_mut().enumerate().for_each(|(n, e)| {
             let (source_id, source) = map[&e.source];
             let (dest_id, dest) = map[&e.dest];
             e.source = source_id;
             e.dest = dest_id;
             e.length = haversine_distance(source, dest);
-            e.coverage = edge_coverage(
+            let (tele, voda, o2) = edge_coverage(
                 source,
                 dest,
                 grid.adjacent_towers(source, 10.0, &towers)
                     .unwrap_or_default(),
             );
+            coverage.set(&Provider::Telekom, n, tele);
+            coverage.set(&Provider::Vodafone, n, voda);
+            coverage.set(&Provider::O2, n, o2);
         });
-
         let load_end = Instant::now();
 
         println!(
             "preprocessed edges in: {:?}",
             load_end.duration_since(load_start)
         );
+        coverage
     }
 
     pub fn next_node_to(&self, lat: f64, long: f64) -> Option<NodeInfoWithIndex> {
