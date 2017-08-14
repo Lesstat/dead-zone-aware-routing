@@ -95,24 +95,14 @@ pub struct HalfEdge {
     for_pedestrians: bool,
 }
 
-#[derive(HeapSizeOf)]
-pub struct HalfEdges {
-    out_edges: Vec<HalfEdge>,
-    in_edges: Vec<HalfEdge>,
-}
-
 
 #[derive(Clone, PartialEq, Debug, HeapSizeOf)]
 struct NodeOffset {
-    in_start: usize,
     out_start: usize,
 }
 impl NodeOffset {
-    pub fn new(in_start: usize, out_start: usize) -> NodeOffset {
-        NodeOffset {
-            in_start: in_start,
-            out_start: out_start,
-        }
+    pub fn new(out_start: usize) -> NodeOffset {
+        NodeOffset { out_start: out_start }
     }
 }
 
@@ -120,13 +110,8 @@ impl NodeOffset {
 pub struct Graph {
     pub node_info: Vec<NodeInfo>,
     node_offsets: Vec<NodeOffset>,
-    edges: HalfEdges,
+    pub edges: Vec<HalfEdge>,
     grid: Grid,
-}
-
-enum OffsetMode {
-    In,
-    Out,
 }
 
 #[derive(Debug)]
@@ -152,59 +137,36 @@ impl Graph {
     }
 
     pub fn outgoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
-        &self.edges.out_edges[self.node_offsets[id].out_start..self.node_offsets[id + 1].out_start]
+        &self.edges[self.node_offsets[id].out_start..self.node_offsets[id + 1].out_start]
     }
 
-    pub fn ingoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
-        &self.edges.in_edges[self.node_offsets[id].in_start..self.node_offsets[id + 1].in_start]
-    }
+    // pub fn ingoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
+    //     &self.edges.in_edges[self.node_offsets[id].in_start..self.node_offsets[id + 1].in_start]
+    // }
 
     fn calc_node_offsets(
         node_count: usize,
         mut edges: Vec<EdgeInfo>,
-    ) -> (Vec<NodeOffset>, HalfEdges) {
+    ) -> (Vec<NodeOffset>, Vec<HalfEdge>) {
         use std::cmp::Ordering;
 
-        fn calc_offset_inner(
-            edges: &[EdgeInfo],
-            node_offsets: &mut Vec<NodeOffset>,
-            mode: &OffsetMode,
-        ) {
+        fn calc_offset_inner(edges: &[EdgeInfo], node_offsets: &mut Vec<NodeOffset>) {
 
             let mut last_id = 0;
             for (index, edge) in edges.iter().enumerate() {
-
-                let cur_id = match *mode {
-                    OffsetMode::In => edge.dest,
-                    OffsetMode::Out => edge.source,
-                };
+                let cur_id = edge.source;
                 for node_offset in &mut node_offsets[last_id + 1..cur_id + 1] {
-                    match *mode {
-                        OffsetMode::In => {
-                            node_offset.in_start = index;
-                        }
-                        OffsetMode::Out => {
-                            node_offset.out_start = index;
-                        }
-                    }
-
+                    node_offset.out_start = index;
                 }
                 last_id = cur_id;
             }
 
             for node_offset in &mut node_offsets[last_id + 1..] {
-                match *mode {
-                    OffsetMode::In => {
-                        node_offset.in_start = edges.len();
-                    }
-                    OffsetMode::Out => {
-                        node_offset.out_start = edges.len();
-                    }
-                }
+                node_offset.out_start = edges.len();
             }
         }
 
-        let mut node_offsets = vec![NodeOffset::new(0, 0); node_count + 1];
+        let mut node_offsets = vec![NodeOffset::new(0); node_count + 1];
 
         edges.sort_by(|a, b| {
             let ord = a.source.cmp(&b.source);
@@ -215,60 +177,24 @@ impl Graph {
         });
         edges.dedup_by_key(|edge| (edge.source, edge.dest));
 
-        calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::Out);
-        let out_edges = Graph::create_half_edges(&edges, OffsetMode::Out);
+        calc_offset_inner(&edges, &mut node_offsets);
+        let out_edges = Graph::create_half_edges(&edges);
 
-        edges.sort_by(|a, b| {
-            let ord = a.dest.cmp(&b.dest);
-            match ord {
-                Ordering::Equal => a.source.cmp(&b.source),
-                _ => ord,
-            }
-        });
-        calc_offset_inner(&edges, &mut node_offsets, &OffsetMode::In);
-        let in_edges = Graph::create_half_edges(&edges, OffsetMode::In);
-
-        let edges = HalfEdges {
-            in_edges,
-            out_edges,
-        };
-        (node_offsets, edges)
+        (node_offsets, out_edges)
     }
-    fn create_half_edges(edges: &[EdgeInfo], mode: OffsetMode) -> Vec<HalfEdge> {
-        match mode {
-
-            OffsetMode::In => {
-                edges
-                    .iter()
-                    .map(|e| {
-
-                        HalfEdge {
-                            endpoint: e.source,
-                            length: e.length,
-                            time: e.length / e.speed as f64,
-                            for_cars: e.for_cars,
-                            for_pedestrians: e.for_pedestrians,
-                        }
-                    })
-                    .collect()
-            }
-
-            OffsetMode::Out => {
-                edges
-                    .iter()
-                    .map(|e| {
-                        HalfEdge {
-                            endpoint: e.dest,
-                            length: e.length,
-                            time: e.length / e.speed as f64,
-                            for_cars: e.for_cars,
-                            for_pedestrians: e.for_pedestrians,
-                        }
-                    })
-                    .collect()
-            }
-        }
-
+    fn create_half_edges(edges: &[EdgeInfo]) -> Vec<HalfEdge> {
+        edges
+            .iter()
+            .map(|e| {
+                HalfEdge {
+                    endpoint: e.dest,
+                    length: e.length,
+                    time: e.length / e.speed as f64,
+                    for_cars: e.for_cars,
+                    for_pedestrians: e.for_pedestrians,
+                }
+            })
+            .collect()
     }
 
     pub fn node_count(&self) -> usize {
@@ -330,12 +256,12 @@ fn graph_creation() {
         ],
     );
     let exp = vec![
-        NodeOffset::new(0, 0),
-        NodeOffset::new(0, 3),
-        NodeOffset::new(1, 3),
-        NodeOffset::new(2, 5),
-        NodeOffset::new(4, 5),
-        NodeOffset::new(5, 5),
+        NodeOffset::new(0),
+        NodeOffset::new(3),
+        NodeOffset::new(3),
+        NodeOffset::new(5),
+        NodeOffset::new(5),
+        NodeOffset::new(5),
     ];
     assert_eq!(g.node_offsets.len(), exp.len());
     assert_eq!(g.node_offsets, exp);
