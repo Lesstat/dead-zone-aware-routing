@@ -122,7 +122,7 @@ pub enum RoutingGoal {
 impl Graph {
     pub fn new(mut node_info: Vec<NodeInfo>, mut edges: Vec<EdgeInfo>) -> Graph {
         let grid = Grid::new(&mut node_info, 100);
-        let coverage = Graph::map_edges_to_node_index(&node_info, &mut edges);
+        let coverage = Graph::preprocess_edges(&node_info, &mut edges);
         let node_count = node_info.len();
         let (node_offsets, edges) = Graph::calc_node_offsets(node_count, edges);
 
@@ -197,7 +197,7 @@ impl Graph {
         self.node_offsets.len()
     }
 
-    fn map_edges_to_node_index(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) -> Coverage {
+    fn preprocess_edges(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) -> Coverage {
         use std::collections::hash_map::HashMap;
         let mut towers = load_towers(
             "/home/flo/workspaces/rust/graphdata/towers_ger_sample_100_range_10k_age_1y.csv",
