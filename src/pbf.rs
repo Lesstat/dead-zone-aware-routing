@@ -4,9 +4,10 @@ use std::path::Path;
 use std::fs::File;
 use std::time::Instant;
 
-use super::graph::*;
+use graph::*;
+use towers::Tower;
 
-pub fn load_graph<P: AsRef<Path>>(p: P) -> Graph {
+pub fn load_graph<P: AsRef<Path>>(p: P, towers: &mut Vec<Tower>) -> Graph {
     let fs = File::open(p).unwrap();
     let mut reader = OsmPbfReader::new(fs);
     let start_loading = Instant::now();
@@ -66,8 +67,9 @@ pub fn load_graph<P: AsRef<Path>>(p: P) -> Graph {
             _ => (),
         }
     }
+    println!("Amount of Edges {}", edges.len());
     let start_graph = Instant::now();
-    let g = Graph::new(nodes, edges);
+    let g = Graph::new(nodes, edges, towers);
     let end_graph = Instant::now();
 
     println!(

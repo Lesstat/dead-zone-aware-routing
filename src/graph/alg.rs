@@ -1,6 +1,6 @@
 use super::{Graph, NodeId, Length, RoutingGoal};
+use towers::Provider;
 
-use std::time::Instant;
 use std::cmp::Ordering;
 use std::f64;
 use std::collections::VecDeque;
@@ -8,32 +8,6 @@ use std::collections::VecDeque;
 use ordered_float::OrderedFloat;
 
 impl Graph {
-    pub fn count_components(&self) -> usize {
-        let start = Instant::now();
-        let mut union = UnionFind::new(self.node_info.len());
-        for id in 0..self.node_info.len() {
-            if id == union.find(id) {
-                self.dfs(id, &mut union);
-            }
-        }
-        let count = union.count();
-        let end = Instant::now();
-        println!("Counting Components took {:?}", end.duration_since(start));
-        count
-    }
-
-    fn dfs(&self, start: NodeId, union: &mut UnionFind) {
-        let mut queue = Vec::<NodeId>::new();
-        queue.push(start);
-        while let Some(n) = queue.pop() {
-            if union.find(n) == n {
-                union.union(start, n);
-                queue.extend(self.outgoing_edges_for(n).iter().map(|e| e.endpoint));
-            }
-
-        }
-    }
-
     pub fn dijkstra(&self) -> Dijkstra {
         Dijkstra {
             dist: vec![f64::MAX.into(); self.node_count()],
@@ -44,56 +18,12 @@ impl Graph {
 }
 
 
-#[derive(Debug)]
-struct UnionFind {
-    parent: Vec<NodeId>,
-}
-
-impl UnionFind {
-    pub fn new(size: usize) -> UnionFind {
-        let parent = (0..size).collect();
-        UnionFind { parent: parent }
-    }
-
-    pub fn find(&mut self, id: NodeId) -> NodeId {
-        let mut visited_ids = vec![id];
-        let mut cur_id = id;
-        let mut par_id = self.parent[id];
-        while cur_id != par_id {
-            cur_id = par_id;
-            visited_ids.push(cur_id);
-            par_id = self.parent[cur_id];
-        }
-        for id in visited_ids {
-            self.parent[id] = par_id;
-        }
-        par_id
-    }
-
-    pub fn union(&mut self, r: NodeId, s: NodeId) {
-        let r_par = self.find(r);
-        let s_par = self.find(s);
-        if r_par != s_par {
-            self.parent[s_par] = r_par;
-        }
-    }
-
-    fn count(&self) -> usize {
-        let mut result = 0;
-        for (index, &par) in self.parent.iter().enumerate() {
-            if index == par {
-                result += 1;
-            }
-        }
-        result
-    }
-}
-
 #[derive(PartialEq, Eq, Debug)]
 struct NodeCost {
     node: NodeId,
     cost: OrderedFloat<f64>,
-    other_cost: OrderedFloat<f64>,
+    time: OrderedFloat<f64>,
+    distance: OrderedFloat<f64>,
 }
 
 impl Ord for NodeCost {
@@ -108,26 +38,6 @@ impl PartialOrd for NodeCost {
     }
 }
 
-#[test]
-fn count() {
-    use super::{EdgeInfo, NodeInfo};
-    let g = Graph::new(
-        vec![
-            NodeInfo::new(0, 2.2, 3.2, 0),
-            NodeInfo::new(1, 2.3, 3.4, 0),
-            NodeInfo::new(2, 2.3, 3.4, 0),
-            NodeInfo::new(3, 2.3, 3.4, 0),
-            NodeInfo::new(4, 2.4, 3.9, 0),
-        ],
-        vec![
-            EdgeInfo::new(0, 1, 3.0, 3),
-            EdgeInfo::new(0, 2, 3.0, 3),
-            EdgeInfo::new(2, 3, 3.0, 3),
-            EdgeInfo::new(4, 0, 3.0, 3),
-        ],
-    );
-    assert_eq!(g.count_components(), 1)
-}
 
 pub struct Dijkstra<'a> {
     dist: Vec<OrderedFloat<f64>>,
@@ -148,13 +58,17 @@ impl<'a> Dijkstra<'a> {
         dest: NodeId,
         goal: RoutingGoal,
         movement: Movement,
+        provider: Option<Provider>,
     ) -> Option<Route> {
         use std::collections::BinaryHeap;
         let goal = match movement {
             Movement::Car => goal,
             Movement::Foot => RoutingGoal::Length,
         };
-
+        let coverage = match provider {
+            Some(provider) => Some(self.graph.coverage.get_all(&provider)),
+            None => None,
+        };
 
         let mut prev: Vec<usize> = (0..self.graph.node_count()).collect();
 
@@ -165,13 +79,15 @@ impl<'a> Dijkstra<'a> {
         heap.push(NodeCost {
             node: source,
             cost: 0.0.into(),
-            other_cost: 0.0.into(),
+            time: 0.0.into(),
+            distance: 0.0.into(),
         });
 
         while let Some(NodeCost {
                            node,
                            cost,
-                           other_cost,
+                           time,
+                           distance,
                        }) = heap.pop()
         {
 
@@ -185,51 +101,43 @@ impl<'a> Dijkstra<'a> {
                 path.push_front(cur);
                 return Some(Route {
                     node_seq: path,
-                    distance: match goal {
-                        RoutingGoal::Length => cost.into_inner(),
-                        RoutingGoal::Speed => other_cost.into_inner(),
-                    },
-                    travel_time: match goal {
-                        RoutingGoal::Length => other_cost.into_inner(),
-                        RoutingGoal::Speed => cost.into_inner(),
-                    },
+                    distance: distance.into_inner(),
+                    travel_time: time.into_inner(),
                 });
             }
 
             if cost > self.dist[node] {
                 continue;
             }
-            for edge in self.graph.outgoing_edges_for(node) {
-                match movement {
-                    Movement::Car => {
-                        if !edge.for_cars {
-                            continue;
-                        }
-                    }
-                    Movement::Foot => {
-                        if !edge.for_pedestrians {
-                            continue;
-                        }
-                    }
+            for (n, edge) in self.graph.outgoing_edges_for(node) {
+                if edge.is_not_for(&movement) {
+                    continue;
                 }
+                let scaling_factor = match coverage {
+                    Some(cov) => (1.0 + f64::EPSILON) / (3.0 * cov[n] + f64::EPSILON),
+                    None => 1.0,
+                };
                 let next = match goal {
                     RoutingGoal::Length => {
-                        let time = match movement {
+                        let time_calc = match movement {
                             Movement::Car => edge.time,
                             Movement::Foot => edge.length / 3.0,
                         };
                         NodeCost {
                             node: edge.endpoint,
-                            cost: (cost.into_inner() + edge.length).into(),
-                            other_cost: (other_cost.into_inner() + time).into(),
+                            cost: (cost.into_inner() + edge.length * scaling_factor).into(),
+                            time: (time.into_inner() + time_calc).into(),
+                            distance: (distance.into_inner() + edge.length).into(),
                         }
                     }
                     RoutingGoal::Speed => NodeCost {
                         node: edge.endpoint,
-                        cost: (cost.into_inner() + edge.time).into(),
-                        other_cost: (other_cost.into_inner() + edge.length).into(),
+                        cost: (cost.into_inner() + edge.time * scaling_factor).into(),
+                        time: (time.into_inner() + edge.time).into(),
+                        distance: (distance.into_inner() + edge.length).into(),
                     },
                 };
+                //assert!(next.cost >= next.distance);
                 if next.cost < self.dist[next.node] {
                     prev[next.node] = node;
                     self.dist[next.node] = next.cost;

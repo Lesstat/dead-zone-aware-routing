@@ -22,7 +22,13 @@
       <br />
       Car<input type="radio" name="move" value="car"  checked="checked" onclick="calc_dist()">
       Foot<input type="radio" name="move" value="foot"   onclick="calc_dist()">
-      <input type="button" onclick="render_towers()" text="Towers" />
+      <br />
+      Provider:<br />
+      Telekom<input type="radio" name="provider" value="telekom"  checked="checked" onclick="calc_dist()"><br />
+      Vodafone<input type="radio" name="provider" value="vodafone"  onclick="calc_dist()"><br />
+      O2<input type="radio" name="provider" value="o2"  onclick="calc_dist()"><br />
+      None<input type="radio" name="provider" value="none"  onclick="calc_dist()"><br />
+      <input type="button" onclick="render_towers()"  />
     </div>
     <div id="mapid" style="width: 80%; height: 800px;"></div>
     <script>
@@ -96,9 +102,14 @@
        };
        var goal = document.querySelector('input[name="goal"]:checked').value;
        var move = document.querySelector('input[name="move"]:checked').value;
+       var provider = document.querySelector('input[name="provider"]:checked').value;
+       var provider_param =""
+       if (provider != "none"){
+	 provider_param = "&provider=" + provider;
+       }
        var s = document.getElementById("start").innerHTML;
        var t = document.getElementById("end").innerHTML;
-       xmlhttp.open("GET", "/route?s="+ s  + "&t=" + t+ "&goal=" + goal + "&move=" + move, true);
+       xmlhttp.open("GET", "/route?s="+ s  + "&t=" + t+ "&goal=" + goal + "&move=" + move + provider_param, true);
        xmlhttp.send();
      }
 
@@ -111,7 +122,7 @@
        xmlhttp.onload = function() {
 	 if (xmlhttp.status == 200) {
 	   xmlhttp.response.forEach(function(item, index, array) {
-	     L.circle([item.lat, item.lon], { radius: item.range }).addTo(map);
+	     L.circle([item.lat, item.lon], { radius: item.range * 1000 } ).addTo(map);
 	   });
 	   }
        };
@@ -120,7 +131,7 @@
        var latMax = bounds.getNorth();
        var longMin = bounds.getWest();
        var longMax = bounds.getEast();
-       xmlhttp.open("GET", "/towers?lat_min="+ latMin + "&lat_max=" + latMax + "&long_min="+ longMin + "&long_max=" + longMax , true);
+       xmlhttp.open("GET", "/towers?lat_min="+ latMin + "&lat_max=" + latMax + "&long_min="+ longMin + "&long_max=" + longMax, true);
        xmlhttp.send();
      }
     </script>

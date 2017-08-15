@@ -6,8 +6,10 @@ use geom::{Coord, haversine_distance};
 use towers::*;
 
 use std::time::Instant;
+use std::path::Path;
 
 use rayon::prelude::*;
+use bincode;
 
 pub type NodeId = usize;
 pub type OsmNodeId = usize;
@@ -17,7 +19,7 @@ pub type Length = f64;
 pub type Speed = usize;
 pub type Height = usize;
 
-#[derive(HeapSizeOf, Default, Debug, Clone)]
+#[derive(HeapSizeOf, Default, Debug, Clone, Serialize, Deserialize)]
 pub struct NodeInfo {
     pub osm_id: OsmNodeId,
     pub lat: Latitude,
@@ -84,7 +86,7 @@ impl EdgeInfo {
     }
 }
 
-#[derive(HeapSizeOf, Debug, PartialEq)]
+#[derive(HeapSizeOf, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HalfEdge {
     endpoint: NodeId,
     length: f64,
@@ -93,18 +95,26 @@ pub struct HalfEdge {
     for_pedestrians: bool,
 }
 
-
-#[derive(Clone, PartialEq, Debug, HeapSizeOf)]
-struct NodeOffset {
-    out_start: usize,
-}
-impl NodeOffset {
-    pub fn new(out_start: usize) -> NodeOffset {
-        NodeOffset { out_start: out_start }
+impl HalfEdge {
+    #[inline]
+    pub fn is_not_for(&self, movement: &Movement) -> bool {
+        match *movement {
+            Movement::Car => !self.for_cars,
+            Movement::Foot => !self.for_pedestrians,
+        }
     }
 }
 
-#[derive(HeapSizeOf)]
+
+#[derive(Clone, PartialEq, Debug, HeapSizeOf, Serialize, Deserialize)]
+struct NodeOffset(usize);
+impl NodeOffset {
+    pub fn new(out_start: usize) -> NodeOffset {
+        NodeOffset(out_start)
+    }
+}
+
+#[derive(HeapSizeOf, Serialize, Deserialize)]
 pub struct Graph {
     pub node_info: Vec<NodeInfo>,
     node_offsets: Vec<NodeOffset>,
@@ -120,9 +130,13 @@ pub enum RoutingGoal {
 }
 
 impl Graph {
-    pub fn new(mut node_info: Vec<NodeInfo>, mut edges: Vec<EdgeInfo>) -> Graph {
+    pub fn new(
+        mut node_info: Vec<NodeInfo>,
+        mut edges: Vec<EdgeInfo>,
+        towers: &mut Vec<Tower>,
+    ) -> Graph {
         let grid = Grid::new(&mut node_info, 100);
-        let coverage = Graph::preprocess_edges(&node_info, &mut edges);
+        let coverage = Graph::preprocess_edges(&node_info, &mut edges, towers);
         let node_count = node_info.len();
         let (node_offsets, edges) = Graph::calc_node_offsets(node_count, edges);
 
@@ -136,8 +150,13 @@ impl Graph {
 
     }
 
-    pub fn outgoing_edges_for(&self, id: NodeId) -> &[HalfEdge] {
-        &self.edges[self.node_offsets[id].out_start..self.node_offsets[id + 1].out_start]
+    pub fn outgoing_edges_for(&self, id: NodeId) -> EdgeIter {
+        EdgeIter {
+            start: self.node_offsets[id].0,
+            stop: self.node_offsets[id + 1].0,
+            position: self.node_offsets[id].0,
+            edges: &self.edges,
+        }
     }
 
     fn calc_node_offsets(
@@ -152,13 +171,13 @@ impl Graph {
             for (index, edge) in edges.iter().enumerate() {
                 let cur_id = edge.source;
                 for node_offset in &mut node_offsets[last_id + 1..cur_id + 1] {
-                    node_offset.out_start = index;
+                    node_offset.0 = index;
                 }
                 last_id = cur_id;
             }
 
             for node_offset in &mut node_offsets[last_id + 1..] {
-                node_offset.out_start = edges.len();
+                node_offset.0 = edges.len();
             }
         }
 
@@ -197,12 +216,13 @@ impl Graph {
         self.node_offsets.len()
     }
 
-    fn preprocess_edges(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) -> Coverage {
+    fn preprocess_edges(
+        nodes: &[NodeInfo],
+        edges: &mut [EdgeInfo],
+        towers: &mut Vec<Tower>,
+    ) -> Coverage {
         use std::collections::hash_map::HashMap;
-        let mut towers = load_towers(
-            "/home/flo/workspaces/rust/graphdata/towers_ger_sample_100_range_10k_age_1y.csv",
-        ).expect("tower loading failed");
-        let grid = Grid::new(&mut towers, 100);
+        let grid = Grid::new(towers, 100);
         let coverage = Coverage::new(edges.len());
 
         let map: HashMap<OsmNodeId, (usize, &NodeInfo)> =
@@ -241,6 +261,7 @@ impl Graph {
 #[test]
 fn graph_creation() {
 
+    let towers = Vec::new();
     let g = Graph::new(
         vec![
             NodeInfo::new(23, 2.3, 3.3, 12),
@@ -256,6 +277,7 @@ fn graph_creation() {
             EdgeInfo::new(23, 36, 1.0, 1),
             EdgeInfo::new(53, 78, 1.0, 1),
         ],
+        &mut towers,
     );
     let exp = vec![
         NodeOffset::new(0),
@@ -269,23 +291,78 @@ fn graph_creation() {
     assert_eq!(g.node_offsets, exp);
 
     assert_eq!(g.outgoing_edges_for(0).len(), 3);
+    let mut iter = g.outgoing_edges_for(2);
     assert_eq!(
-        g.outgoing_edges_for(2),
-        &[
-            HalfEdge {
+        Some((
+            3,
+            &HalfEdge {
                 endpoint: 3,
                 length: 0.0,
                 time: 0.0,
                 for_cars: true,
                 for_pedestrians: true,
             },
-            HalfEdge {
+        )),
+        iter.next()
+    );
+    assert_eq!(
+        Some((
+            4,
+            &HalfEdge {
                 endpoint: 4,
                 length: 15.718725161325155,
                 time: 15.718725161325155,
                 for_cars: true,
                 for_pedestrians: true,
             },
-        ]
+        )),
+        iter.next()
     );
+
+
+}
+
+#[derive(Debug)]
+pub struct EdgeIter<'a> {
+    start: usize,
+    stop: usize,
+    position: usize,
+    edges: &'a Vec<HalfEdge>,
+}
+
+impl<'a> Iterator for EdgeIter<'a> {
+    type Item = (usize, &'a HalfEdge);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.position >= self.stop {
+            None
+        } else {
+            let item = (self.position, &self.edges[self.position]);
+            self.position += 1;
+            Some(item)
+        }
+    }
+}
+impl<'a> EdgeIter<'a> {
+    pub fn len(&self) -> usize {
+        self.stop - self.start
+    }
+}
+
+pub fn load_preprocessed_graph<P: AsRef<Path>>(path: P) -> super::ApplicationState {
+    use std::fs::File;
+    use std::io::BufReader;
+
+    let start = Instant::now();
+    let mut reader = BufReader::new(File::open(path).expect(
+        "Preprocessed Graph file could not be opened",
+    ));
+    let g = bincode::deserialize_from(&mut reader, bincode::Infinite)
+        .expect("Could not deserialize preprocessed graph");
+    let end = Instant::now();
+    println!(
+        "loaded preprocessed graph in {:?}",
+        end.duration_since(start)
+    );
+    g
 }

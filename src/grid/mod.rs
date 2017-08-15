@@ -2,9 +2,10 @@ use graph::NodeInfo;
 use geom::{Coord, haversine_distance};
 use towers::Tower;
 
+
 mod radius;
 
-#[derive(Debug, HeapSizeOf, FromForm)]
+#[derive(Debug, HeapSizeOf, FromForm, Serialize, Deserialize)]
 pub struct BoundingBox {
     lat_min: f64,
     lat_max: f64,
@@ -43,7 +44,7 @@ impl BoundingBox {
 }
 
 
-#[derive(HeapSizeOf, Debug)]
+#[derive(HeapSizeOf, Debug, Serialize, Deserialize)]
 pub struct Grid {
     b_box: BoundingBox,
     side_length: usize,

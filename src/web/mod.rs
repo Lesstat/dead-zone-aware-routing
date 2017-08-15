@@ -1,56 +1,32 @@
-use super::graph::{NodeId, Graph, RoutingGoal, Movement};
-use super::grid::{BoundingBox, NodeInfoWithIndex};
+use graph::{NodeId, Graph, RoutingGoal, Movement};
+use grid::{BoundingBox, NodeInfoWithIndex};
+use towers::{Provider, Tower};
 
 use rocket::State;
 use rocket::request::{FormItems, FromForm, Request};
 use rocket::response::{self, Response, Responder, NamedFile};
 use rocket::response::content::Json;
 use geojson::{Value, Geometry, Feature, GeoJson};
+use serde_json;
+use bincode;
 
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::error::Error;
 
 
 
 #[get("/towers?<bbox>")]
-pub fn towers(bbox: BoundingBox) -> ::std::io::Result<Json<String>> {
-    use std::io::{BufRead, BufReader};
-    use std::fs::File;
+pub fn towers(bbox: BoundingBox, towers: State<Vec<Tower>>) -> Result<Json<String>, Box<Error>> {
+    let towers: Vec<&Tower> = towers
+        .iter()
+        .filter(|t| {
+            t.net == Provider::O2 && bbox.contains_point(t.lat, t.lon)
+        })
+        .collect();
 
-    let mut result = String::new();
-    let mut file = BufReader::new(File::open(
-        "/home/flo/workspaces/rust/graphdata/towers_ger_sample_100_range_10k.csv",
-    )?);
-    let mut line = String::new();
-    file.read_line(&mut line)?;
-    line.clear();
-
-    result.push_str("[");
-    while let Ok(count) = file.read_line(&mut line) {
-        if count == 0 {
-            break;
-        }
-
-        {
-            let mut splitter = line.split(',');
-            let lon = splitter.nth(6).unwrap();
-            let lat = splitter.next().unwrap();
-            let range = splitter.next().unwrap();
-            if bbox.contains_point(lat.parse().unwrap(), lon.parse().unwrap()) {
-                result.push_str(&format!(
-                    "{{ \"lon\":{}, \"lat\":{}, \"range\":{} }},",
-                    lon,
-                    lat,
-                    range
-                ));
-            }
-        }
-        line.clear();
-    }
-    result.pop();
-    result.push(']');
-    Ok(Json(result))
+    Ok(Json(serde_json::to_string(&towers)?))
 
 }
 
@@ -58,7 +34,7 @@ pub fn towers(bbox: BoundingBox) -> ::std::io::Result<Json<String>> {
 #[get("/route?<q>")]
 pub fn route(q: DijkQuery, graph: State<Graph>) -> Json<String> {
     let mut d = graph.dijkstra();
-    let route = d.distance(q.s, q.t, q.goal, q.movement);
+    let route = d.distance(q.s, q.t, q.goal, q.movement, q.provider);
     let route = match route {
         Some(r) => r,
         None => {
@@ -104,6 +80,7 @@ pub struct DijkQuery {
     t: NodeId,
     goal: RoutingGoal,
     movement: Movement,
+    provider: Option<Provider>,
 }
 
 pub enum ParseQueryErr {
@@ -121,6 +98,7 @@ impl<'f> FromForm<'f> for DijkQuery {
         let mut t: NodeId = ::std::usize::MAX;
         let mut goal = RoutingGoal::Length;
         let mut movement = Movement::Car;
+        let mut provider = None;
         for item in form_items {
 
             match item.0.as_str() {
@@ -128,6 +106,7 @@ impl<'f> FromForm<'f> for DijkQuery {
                 "t" => t = item.1.parse()?,
                 "goal" => goal = item.1.parse()?,
                 "move" => movement = item.1.parse()?,
+                "provider" => provider = Some(item.1.parse()?), 
                 _ => (),
             };
         }
@@ -142,6 +121,7 @@ impl<'f> FromForm<'f> for DijkQuery {
             t,
             goal,
             movement,
+            provider,
         })
     }
 }
@@ -163,6 +143,19 @@ impl FromStr for Movement {
         match string {
             "car" => Ok(Movement::Car),
             "foot" => Ok(Movement::Foot),
+            _ => Err(ParseQueryErr::ParseErr),
+        }
+    }
+}
+
+
+impl FromStr for Provider {
+    type Err = ParseQueryErr;
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string {
+            "telekom" => Ok(Provider::Telekom),
+            "vodafone" => Ok(Provider::Vodafone),
+            "o2" => Ok(Provider::O2),
             _ => Err(ParseQueryErr::ParseErr),
         }
     }
@@ -227,6 +220,35 @@ impl<'a> Responder<'a> for NodeInfoWithIndex {
             .ok()
 
     }
+}
+
+pub struct GraphDownload(Vec<u8>);
+
+impl<'a> Responder<'a> for GraphDownload {
+    fn respond_to(self, _: &Request) -> response::Result<'a> {
+        Response::build().sized_body(Cursor::new(self.0)).ok()
+    }
+}
+
+
+#[derive(Serialize)]
+pub struct ApplicationStateRef<'a> {
+    graph: &'a Graph,
+    towers: &'a Vec<Tower>,
+}
+#[get("/download_graph")]
+pub fn download(
+    g: State<Graph>,
+    towers: State<Vec<Tower>>,
+) -> Result<GraphDownload, Box<bincode::ErrorKind>> {
+    let state = ApplicationStateRef {
+        graph: &g.inner(),
+        towers: &towers.inner(),
+    };
+
+    Ok(GraphDownload(
+        bincode::serialize(&state, bincode::Infinite)?,
+    ))
 }
 
 #[get("/files/<path..>")]
