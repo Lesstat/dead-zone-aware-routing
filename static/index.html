@@ -28,7 +28,8 @@
       Vodafone<input type="radio" name="provider" value="vodafone"  onclick="calc_dist()"><br />
       O2<input type="radio" name="provider" value="o2"  onclick="calc_dist()"><br />
       None<input type="radio" name="provider" value="none"  onclick="calc_dist()"><br />
-      <input type="button" onclick="render_towers()"  />
+      <button  onclick="render_towers()" >Show Towers</button>
+      <button  onclick="towerLayer.clearLayers()" >Remove Towers</button>
     </div>
     <div id="mapid" style="width: 80%; height: 800px;"></div>
     <script>
@@ -39,6 +40,7 @@
      var startPopup = L.popup({ autoClose: false });
      var endPopup = L.popup({ autoClose: false });
      var geoJson = L.geoJSON().addTo(map);
+     var towerLayer = L.layerGroup([]).addTo(map);
 
      L.tileLayer('http://{s}.tile.openstreetmap.org/{id}/{z}/{x}/{y}.png', {
        maxZoom: 18,
@@ -118,11 +120,15 @@
        var xmlhttp = new XMLHttpRequest();
        
        console.log("loading towers");
+
+       var provider = document.querySelector('input[name="provider"]:checked').value;
        xmlhttp.responseType = 'json';
        xmlhttp.onload = function() {
 	 if (xmlhttp.status == 200) {
+	   towerLayer.clearLayers();
+	   var col = getColor(provider);
 	   xmlhttp.response.forEach(function(item, index, array) {
-	     L.circle([item.lat, item.lon], { radius: item.range * 1000 } ).addTo(map);
+	     towerLayer.addLayer(L.circle([item.lat, item.lon], { radius: item.range * 1000, color: col, fillOpacity: 0.01 , opacity: 0.2} ));
 	   });
 	   }
        };
@@ -131,8 +137,23 @@
        var latMax = bounds.getNorth();
        var longMin = bounds.getWest();
        var longMax = bounds.getEast();
-       xmlhttp.open("GET", "/towers?lat_min="+ latMin + "&lat_max=" + latMax + "&long_min="+ longMin + "&long_max=" + longMax, true);
+       xmlhttp.open("GET", "/towers?lat_min="+ latMin + "&lat_max=" + latMax + "&lon_min="+ longMin + "&lon_max=" + longMax + "&provider=" + provider, true);
        xmlhttp.send();
+     }
+
+
+     function getColor(provider){
+       switch (provider){
+	 case "telekom":
+	   return "#E20074";
+	 case "vodafone":
+	   return "#E60000";
+	 case "o2":
+	   return "#0090D0";
+	 case "none":
+	   return "#000000";
+       }
+
      }
     </script>
     

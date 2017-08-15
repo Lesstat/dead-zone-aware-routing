@@ -3,9 +3,10 @@ use grid::{BoundingBox, NodeInfoWithIndex};
 use towers::{Provider, Tower};
 
 use rocket::State;
-use rocket::request::{FormItems, FromForm, Request};
+use rocket::request::{FormItems, FromForm, Request, FromFormValue};
 use rocket::response::{self, Response, Responder, NamedFile};
 use rocket::response::content::Json;
+use rocket::http::RawStr;
 use geojson::{Value, Geometry, Feature, GeoJson};
 use serde_json;
 use bincode;
@@ -17,17 +18,30 @@ use std::error::Error;
 
 
 
-#[get("/towers?<bbox>")]
-pub fn towers(bbox: BoundingBox, towers: State<Vec<Tower>>) -> Result<Json<String>, Box<Error>> {
+#[get("/towers?<query>")]
+pub fn towers(query: TowerQuery, towers: State<Vec<Tower>>) -> Result<Json<String>, Box<Error>> {
+
+    let mut bbox = BoundingBox::new();
+    bbox.add_coord(&(query.lat_max, query.lon_max));
+    bbox.add_coord(&(query.lat_min, query.lon_min));
     let towers: Vec<&Tower> = towers
         .iter()
         .filter(|t| {
-            t.net == Provider::O2 && bbox.contains_point(t.lat, t.lon)
+            t.net == query.provider && bbox.contains_point(t.lat, t.lon)
         })
         .collect();
 
     Ok(Json(serde_json::to_string(&towers)?))
 
+}
+
+#[derive(Debug, FromForm)]
+pub struct TowerQuery {
+    lat_max: f64,
+    lat_min: f64,
+    lon_max: f64,
+    lon_min: f64,
+    provider: Provider,
 }
 
 
@@ -83,6 +97,7 @@ pub struct DijkQuery {
     provider: Option<Provider>,
 }
 
+#[derive(Debug)]
 pub enum ParseQueryErr {
     ParseErr,
     ItemNotPresen(&'static str),
@@ -158,6 +173,14 @@ impl FromStr for Provider {
             "o2" => Ok(Provider::O2),
             _ => Err(ParseQueryErr::ParseErr),
         }
+    }
+}
+
+impl<'v> FromFormValue<'v> for Provider {
+    type Error = ParseQueryErr;
+
+    fn from_form_value(form_value: &RawStr) -> Result<Self, Self::Error> {
+        form_value.parse()
     }
 }
 
