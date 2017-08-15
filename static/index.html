@@ -85,11 +85,12 @@
        
        var xmlhttp = new XMLHttpRequest();
        
+       var provider = document.querySelector('input[name="provider"]:checked').value;
        xmlhttp.responseType = 'json';
        xmlhttp.onload = function() {
 	 if (xmlhttp.status == 200) {
 	     var myStyle = {
-	       "color": "#ff7800",
+	       "color": getColor(provider),
 	       "weight": 5,
 	       "opacity": 0.65
 	     };
