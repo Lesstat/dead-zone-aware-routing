@@ -103,6 +103,21 @@ impl HalfEdge {
             Movement::Foot => !self.for_pedestrians,
         }
     }
+
+    #[inline]
+    pub fn get_cost(&self, goal: &RoutingGoal) -> f64 {
+        match *goal {
+            RoutingGoal::Length => self.length,
+            RoutingGoal::Speed => self.time,
+        }
+    }
+
+    pub fn get_time(&self, movement: &Movement) -> f64 {
+        match *movement {
+            Movement::Car => self.time,
+            Movement::Foot => self.length / 3.0,
+        }
+    }
 }
 
 

@@ -72,9 +72,7 @@ impl<'a> Dijkstra<'a> {
 
         let mut prev: Vec<usize> = (0..self.graph.node_count()).collect();
 
-        for node in self.touched.drain(..) {
-            self.dist[node] = OrderedFloat::from(f64::MAX);
-        }
+        self.reset_state();
         let mut heap = BinaryHeap::new();
         heap.push(NodeCost {
             node: source,
@@ -113,31 +111,13 @@ impl<'a> Dijkstra<'a> {
                 if edge.is_not_for(&movement) {
                     continue;
                 }
-                let scaling_factor = match coverage {
-                    Some(cov) => (1.0 + f64::EPSILON) / (3.0 * cov[n] + f64::EPSILON),
-                    None => 1.0,
+                let scaling_factor = self.calculate_scaling_factor(coverage, n);
+                let next = NodeCost {
+                    node: edge.endpoint,
+                    cost: (cost.into_inner() + edge.get_cost(&goal) * scaling_factor).into(),
+                    time: (time.into_inner() + edge.get_time(&movement)).into(),
+                    distance: (distance.into_inner() + edge.length).into(),
                 };
-                let next = match goal {
-                    RoutingGoal::Length => {
-                        let time_calc = match movement {
-                            Movement::Car => edge.time,
-                            Movement::Foot => edge.length / 3.0,
-                        };
-                        NodeCost {
-                            node: edge.endpoint,
-                            cost: (cost.into_inner() + edge.length * scaling_factor).into(),
-                            time: (time.into_inner() + time_calc).into(),
-                            distance: (distance.into_inner() + edge.length).into(),
-                        }
-                    }
-                    RoutingGoal::Speed => NodeCost {
-                        node: edge.endpoint,
-                        cost: (cost.into_inner() + edge.time * scaling_factor).into(),
-                        time: (time.into_inner() + edge.time).into(),
-                        distance: (distance.into_inner() + edge.length).into(),
-                    },
-                };
-                //assert!(next.cost >= next.distance);
                 if next.cost < self.dist[next.node] {
                     prev[next.node] = node;
                     self.dist[next.node] = next.cost;
@@ -147,6 +127,21 @@ impl<'a> Dijkstra<'a> {
             }
         }
         None
+    }
+
+    #[inline]
+    fn reset_state(&mut self) {
+        for node in self.touched.drain(..) {
+            self.dist[node] = OrderedFloat::from(f64::MAX);
+        }
+
+    }
+    #[inline]
+    fn calculate_scaling_factor(&self, coverage: Option<&Vec<f64>>, index: usize) -> f64 {
+        match coverage {
+            Some(cov) => (1.0 + f64::EPSILON) / (3.0 * cov[index] + f64::EPSILON),
+            None => 1.0,
+        }
     }
 }
 
