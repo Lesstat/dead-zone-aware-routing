@@ -18,6 +18,7 @@ use std::error::Error;
 
 
 
+#[allow(needless_pass_by_value)]
 #[get("/towers?<query>")]
 pub fn towers(query: TowerQuery, towers: State<Vec<Tower>>) -> Result<Json<String>, Box<Error>> {
 
@@ -30,7 +31,6 @@ pub fn towers(query: TowerQuery, towers: State<Vec<Tower>>) -> Result<Json<Strin
             t.net == query.provider && bbox.contains_point(t.lat, t.lon)
         })
         .collect();
-
     Ok(Json(serde_json::to_string(&towers)?))
 
 }
@@ -45,6 +45,7 @@ pub struct TowerQuery {
 }
 
 
+#[allow(needless_pass_by_value)]
 #[get("/route?<q>")]
 pub fn route(q: DijkQuery, graph: State<Graph>) -> Json<String> {
     let mut d = graph.dijkstra();
@@ -196,6 +197,7 @@ impl From<::std::num::ParseFloatError> for ParseQueryErr {
 }
 
 
+#[allow(needless_pass_by_value)]
 #[get("/node_at?<q>")]
 pub fn next_node_to(q: NNQuery, graph: State<Graph>) -> Option<NodeInfoWithIndex> {
     graph.next_node_to(q.lat, q.long)
@@ -259,6 +261,8 @@ pub struct ApplicationStateRef<'a> {
     graph: &'a Graph,
     towers: &'a Vec<Tower>,
 }
+
+#[allow(needless_pass_by_value)]
 #[get("/download_graph")]
 pub fn download(
     g: State<Graph>,

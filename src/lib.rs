@@ -1,5 +1,6 @@
 #![feature(plugin, custom_derive)]
 #![plugin(rocket_codegen)]
+#![allow(unknown_lints)]
 
 extern crate heapsize;
 #[macro_use]
