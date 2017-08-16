@@ -65,10 +65,7 @@ impl<'a> Dijkstra<'a> {
             Movement::Car => goal,
             Movement::Foot => RoutingGoal::Length,
         };
-        let coverage = match provider {
-            Some(provider) => Some(self.graph.coverage.get_all(&provider)),
-            None => None,
-        };
+        let coverage = self.graph.coverage.get_all(provider);
 
         let mut prev: Vec<usize> = (0..self.graph.node_count()).collect();
 

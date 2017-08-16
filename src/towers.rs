@@ -43,9 +43,15 @@ impl Coverage {
         }
     }
 
-    pub fn get_all(&self, p: &Provider) -> &Vec<f64> {
-        let cell = &self.0[p];
-        unsafe { &*cell.0.get() }
+    pub fn get_all(&self, p: Option<Provider>) -> Option<&Vec<f64>> {
+        match p {
+            Some(p) => {
+                let cell = &self.0[&p];
+                unsafe { Some(&*cell.0.get()) }
+            }
+            None => None,
+        }
+
     }
 }
 unsafe impl Sync for Coverage {}
