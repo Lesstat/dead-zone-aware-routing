@@ -238,7 +238,7 @@ impl Graph {
             let (tele, voda, o2) = edge_coverage(
                 source,
                 dest,
-                grid.adjacent_towers(source, 10.0, &towers)
+                grid.adjacent_towers(source, 10.0 + e.length, towers)
                     .unwrap_or_default(),
             );
             coverage.set(&Provider::Telekom, n, tele);
@@ -261,7 +261,7 @@ impl Graph {
 #[test]
 fn graph_creation() {
 
-    let towers = Vec::new();
+    let mut towers = Vec::new();
     let g = Graph::new(
         vec![
             NodeInfo::new(23, 2.3, 3.3, 12),

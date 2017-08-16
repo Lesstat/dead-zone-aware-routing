@@ -269,8 +269,8 @@ pub fn download(
     towers: State<Vec<Tower>>,
 ) -> Result<GraphDownload, Box<bincode::ErrorKind>> {
     let state = ApplicationStateRef {
-        graph: &g.inner(),
-        towers: &towers.inner(),
+        graph: g.inner(),
+        towers: towers.inner(),
     };
 
     Ok(GraphDownload(

@@ -139,7 +139,6 @@ pub fn haversine_distance<C1: Coord, C2: Coord>(a: &C1, b: &C2) -> Length {
     let a = (delta_theta / 2.0).sin().powi(2) +
         theta1.cos() * theta2.cos() * (delta_lambda / 2.0).sin().powi(2);
     let c = 2.0 * a.sqrt().asin();
-    // WGS84 equatorial radius is 6378137.0
     EARTH_RADIUS * c
 }
 
