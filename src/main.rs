@@ -67,6 +67,8 @@ fn main() {
                 fapra::web::serve_files,
                 fapra::web::towers,
                 fapra::web::download,
+                fapra::web::map_boundary,
+                fapra::web::low_coverage,
             ],
         )
         .manage(g.graph)

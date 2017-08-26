@@ -1,5 +1,5 @@
 use graph::{Longitude, Latitude, NodeInfo};
-use geom::{project, intersect, Coord, Point, SegmentSection};
+use geom::{project, intersect, Coord, SegmentSection};
 
 use std::error::Error;
 use std::collections::HashMap;
@@ -70,7 +70,7 @@ impl HeapSizeOf for Coverage {
 
 #[derive(Debug, Deserialize, Serialize, HeapSizeOf)]
 pub struct Tower {
-    radio: TowerType,
+    pub radio: TowerType,
     pub net: Provider,
     pub lat: Latitude,
     pub lon: Longitude,
@@ -84,8 +84,6 @@ pub fn edge_coverage<'a, I: Iterator<Item = &'a Tower>>(
     t: &NodeInfo,
     towers: Vec<I>,
 ) -> (f64, f64, f64) {
-    let mut skip_count = 0;
-    let mut tower_count = 0;
     let mut o2_sections = Vec::new();
     let mut telekom_sections = Vec::new();
     let mut vodafone_sections = Vec::new();
@@ -93,21 +91,17 @@ pub fn edge_coverage<'a, I: Iterator<Item = &'a Tower>>(
         .into_iter()
         .flat_map(|iter| iter)
         .filter_map(|tower| {
-            tower_count += 1;
             let s = project(s, tower.lat);
             let t = project(t, tower.lat);
-            if (t.x() - s.x()).abs() < ::std::f64::EPSILON {
-                skip_count += 1;
-                return None;
-            }
             let tower_point = project(tower, tower.lat);
-            let sec = intersect(&s, &t, &tower_point, tower.range as f64);
+            let sec = intersect(&s, &t, &tower_point, tower.range);
             if !sec.is_empty() {
                 match tower.net {
                     Provider::Telekom => telekom_sections.push(sec),
                     Provider::Vodafone => vodafone_sections.push(sec),
                     Provider::O2 => o2_sections.push(sec),
                 };
+                return Some(());
             }
 
             None
@@ -128,6 +122,9 @@ fn accumulate_sections(mut sections: Vec<SegmentSection>) -> f64 {
             acc.push(sec.clone());
         } else {
             let last_sec = acc.pop().unwrap();
+            if last_sec.is_full() {
+                return vec![last_sec];
+            }
             if sec.is_overlapping(&last_sec) {
                 acc.push(sec.merge(&last_sec));
             } else {
@@ -147,15 +144,11 @@ pub fn load_towers<P: AsRef<Path>>(p: P) -> Result<Vec<Tower>, Box<Error>> {
     let mut reader = Reader::from_path(p)?;
     let mut result = Vec::new();
     for res in reader.deserialize().filter(|res| res.is_ok()) {
-        let mut tower: Tower = res?;
-        tower.range /= 1000.0; //convert range into km
+        let tower: Tower = res?;
         result.push(tower);
     }
     Ok(result)
 }
-
-
-
 
 
 impl Coord for Tower {
@@ -170,7 +163,7 @@ impl Coord for Tower {
 }
 
 #[derive(Debug, Deserialize, Serialize, HeapSizeOf)]
-enum TowerType {
+pub enum TowerType {
     LTE,
     UMTS,
     GSM,

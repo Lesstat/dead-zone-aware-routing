@@ -7,10 +7,10 @@ mod radius;
 
 #[derive(Debug, HeapSizeOf, FromForm, Serialize, Deserialize)]
 pub struct BoundingBox {
-    lat_min: f64,
-    lat_max: f64,
-    long_min: f64,
-    long_max: f64,
+    pub lat_min: f64,
+    pub lat_max: f64,
+    pub long_min: f64,
+    pub long_max: f64,
 }
 impl BoundingBox {
     pub fn new() -> BoundingBox {
@@ -46,7 +46,7 @@ impl BoundingBox {
 
 #[derive(HeapSizeOf, Debug, Serialize, Deserialize)]
 pub struct Grid {
-    b_box: BoundingBox,
+    pub b_box: BoundingBox,
     side_length: usize,
     offset_array: Vec<usize>,
 }
@@ -198,10 +198,7 @@ impl Grid {
                 let end = self.offset_array[index + 1];
                 let iter = towers[start..end].iter();
                 result.push(iter);
-
             }
-
-
         }
         Ok(result)
     }

@@ -1,4 +1,4 @@
-use graph::{NodeId, Graph, RoutingGoal, Movement};
+use graph::{NodeId, Graph, RoutingGoal, Movement, NodeInfo};
 use grid::{BoundingBox, NodeInfoWithIndex};
 use towers::{Provider, Tower};
 
@@ -7,7 +7,7 @@ use rocket::request::{FormItems, FromForm, Request, FromFormValue};
 use rocket::response::{self, Response, Responder, NamedFile};
 use rocket::response::content::Json;
 use rocket::http::RawStr;
-use geojson::{Value, Geometry, Feature, GeoJson};
+use geojson::{Value, Geometry, Feature, GeoJson, FeatureCollection};
 use serde_json;
 use bincode;
 
@@ -17,6 +17,67 @@ use std::str::FromStr;
 use std::error::Error;
 
 
+#[allow(needless_pass_by_value)]
+#[get("/low_coverage?<query>")]
+pub fn low_coverage(query: TowerQuery, graph: State<Graph>) -> Json<String> {
+    let mut bbox = BoundingBox::new();
+    bbox.add_coord(&(query.lat_min, query.lon_min));
+    bbox.add_coord(&(query.lat_max, query.lon_max));
+    let coverage = graph.coverage.get_all(Some(query.provider)).expect(
+        "No coverage data for given Provider",
+    );
+
+    let mut edges: Vec<(&NodeInfo, &NodeInfo)> = Vec::new();
+    for (n_i, n) in graph.node_info.iter().enumerate() {
+        if bbox.contains_point(n.lat, n.long) {
+            for (e_i, e) in graph.outgoing_edges_for(n_i) {
+                let cov = coverage[e_i];
+                if cov <= 0.5 {
+                    edges.push((n, &graph.node_info[e.endpoint]));
+                }
+            }
+
+        }
+    }
+
+    let mut features = Vec::new();
+    for edge in edges {
+        let geometry = Geometry::new(Value::LineString(vec![
+            vec![edge.0.long, edge.0.lat],
+            vec![edge.1.long, edge.1.lat],
+        ]));
+        features.push(Feature {
+            bbox: None,
+            geometry: Some(geometry),
+            id: None,
+            properties: None,
+            foreign_members: None,
+        });
+    }
+
+    let collection = GeoJson::FeatureCollection(FeatureCollection {
+        bbox: None,
+        features: features,
+        foreign_members: None,
+    });
+
+    Json(collection.to_string())
+}
+
+#[allow(needless_pass_by_value)]
+#[get("/map_coords")]
+pub fn map_boundary(graph: State<Graph>) -> Json<String> {
+    let bbox = &graph.grid.b_box;
+
+    Json(format!(
+        "[ [{}, {}], [{}, {}]]",
+        bbox.lat_min,
+        bbox.long_min,
+        bbox.lat_max,
+        bbox.long_max
+    ))
+
+}
 
 #[allow(needless_pass_by_value)]
 #[get("/towers?<query>")]
@@ -32,7 +93,6 @@ pub fn towers(query: TowerQuery, towers: State<Vec<Tower>>) -> Result<Json<Strin
         })
         .collect();
     Ok(Json(serde_json::to_string(&towers)?))
-
 }
 
 #[derive(Debug, FromForm)]
@@ -81,9 +141,9 @@ pub fn route(q: DijkQuery, graph: State<Graph>) -> Json<String> {
         format!(
             "{{ \"distance\": {:.*}, \"travel_time\": {:.*},   \"route\": {} }}",
             2,
-            route.distance,
+            route.distance / 1000.0,
             2,
-            route.travel_time,
+            route.travel_time / 1000.0,
             geo.to_string()
         ).to_string(),
     )

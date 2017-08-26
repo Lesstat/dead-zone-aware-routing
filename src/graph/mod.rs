@@ -88,7 +88,7 @@ impl EdgeInfo {
 
 #[derive(HeapSizeOf, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HalfEdge {
-    endpoint: NodeId,
+    pub endpoint: NodeId,
     length: f64,
     time: f64,
     for_cars: bool,
@@ -134,8 +134,8 @@ pub struct Graph {
     pub node_info: Vec<NodeInfo>,
     node_offsets: Vec<NodeOffset>,
     pub edges: Vec<HalfEdge>,
-    grid: Grid,
-    coverage: Coverage,
+    pub grid: Grid,
+    pub coverage: Coverage,
 }
 
 #[derive(Debug)]
@@ -147,13 +147,14 @@ pub enum RoutingGoal {
 impl Graph {
     pub fn new(
         mut node_info: Vec<NodeInfo>,
-        mut edges: Vec<EdgeInfo>,
+        mut edge_infos: Vec<EdgeInfo>,
         towers: &mut Vec<Tower>,
     ) -> Graph {
         let grid = Grid::new(&mut node_info, 100);
-        let coverage = Graph::preprocess_edges(&node_info, &mut edges, towers);
+        Graph::update_node_ids(&node_info, &mut edge_infos);
         let node_count = node_info.len();
-        let (node_offsets, edges) = Graph::calc_node_offsets(node_count, edges);
+        let (node_offsets, edges) = Graph::calc_node_offsets(node_count, &mut edge_infos);
+        let coverage = Graph::calculate_coverage(&node_info, &mut edge_infos, towers);
 
         Graph {
             node_info,
@@ -176,7 +177,7 @@ impl Graph {
 
     fn calc_node_offsets(
         node_count: usize,
-        mut edges: Vec<EdgeInfo>,
+        edges: &mut Vec<EdgeInfo>,
     ) -> (Vec<NodeOffset>, Vec<HalfEdge>) {
         use std::cmp::Ordering;
 
@@ -231,41 +232,43 @@ impl Graph {
         self.node_offsets.len()
     }
 
-    fn preprocess_edges(
-        nodes: &[NodeInfo],
-        edges: &mut [EdgeInfo],
-        towers: &mut Vec<Tower>,
-    ) -> Coverage {
+    fn update_node_ids(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
         use std::collections::hash_map::HashMap;
-        let grid = Grid::new(towers, 100);
-        let coverage = Coverage::new(edges.len());
 
         let map: HashMap<OsmNodeId, (usize, &NodeInfo)> =
             nodes.iter().enumerate().map(|n| (n.1.osm_id, n)).collect();
-        println!("processing coverage");
-        let load_start = Instant::now();
-        edges.par_iter_mut().enumerate().for_each(|(n, e)| {
+        edges.par_iter_mut().for_each(|e| {
             let (source_id, source) = map[&e.source];
             let (dest_id, dest) = map[&e.dest];
             e.source = source_id;
             e.dest = dest_id;
             e.length = haversine_distance(source, dest);
+        });
+
+    }
+
+    pub fn calculate_coverage(
+        nodes: &[NodeInfo],
+        edges: &mut Vec<EdgeInfo>,
+        towers: &mut Vec<Tower>,
+    ) -> Coverage {
+
+        let grid = Grid::new(towers, 100);
+        let coverage = Coverage::new(edges.len());
+        edges.par_iter_mut().enumerate().for_each(|(n, e)| {
+            let source = &nodes[e.source];
+            let dest = &nodes[e.dest];
             let (tele, voda, o2) = edge_coverage(
                 source,
                 dest,
-                grid.adjacent_towers(source, 10.0 + e.length, towers)
-                    .unwrap_or_default(),
+                grid.adjacent_towers(source, 10500.0, towers).unwrap(),
             );
+
             coverage.set(&Provider::Telekom, n, tele);
             coverage.set(&Provider::Vodafone, n, voda);
             coverage.set(&Provider::O2, n, o2);
         });
-        let load_end = Instant::now();
 
-        println!(
-            "preprocessed edges in: {:?}",
-            load_end.duration_since(load_start)
-        );
         coverage
     }
 

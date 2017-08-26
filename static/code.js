@@ -17,6 +17,8 @@ $("input").change(function() {
     calcDistWithCurrentSelection();
 });
 
+panOutMap();
+
 function calcDistWithCurrentSelection(){
     var goal = document.querySelector('input[name="goal"]:checked').value;
     var move = document.querySelector('input[name="move"]:checked').value;
@@ -106,7 +108,7 @@ function renderTowers(){
 	    towerLayer.clearLayers();
 	    var col = getColor(provider);
 	    xmlhttp.response.forEach(function(item, index, array) {
-		towerLayer.addLayer(L.circle([item.lat, item.lon], { radius: item.range * 1000, color: col, fillOpacity: 0.05 , opacity: 0.2, weight: 1} ));
+		towerLayer.addLayer(L.circle([item.lat, item.lon], { radius: item.range , color: col, fillOpacity: 0.05 , opacity: 0.2, weight: 1} ));
 	    });
 	}
     };
@@ -129,4 +131,44 @@ function getColor(provider){
 	return "#0090D0";
     }
     return "#000000";
+}
+
+
+function panOutMap(){
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.responseType = "json";
+    xmlhttp.onload =  function(){
+	if (xmlhttp.status == 200){
+	    map.fitBounds(xmlhttp.response);
+	}
+    };
+
+    xmlhttp.open("GET", "/map_coords");
+    xmlhttp.send();
+    
+}
+
+function showLowCoverageEdges(){
+    geoJson.clearLayers();
+    var xmlhttp = new XMLHttpRequest();
+    
+    var provider = document.querySelector('input[name="provider"]:checked').value;
+    xmlhttp.responseType = 'json';
+    xmlhttp.onload = function() {
+	if (xmlhttp.status == 200) {
+	    var myStyle = {
+		"color": getColor(provider),
+		"weight": 5,
+		"opacity": 0.65
+	    };
+	    geoJson.addLayer(L.geoJSON(xmlhttp.response, { style: myStyle }));
+	}
+    };
+    var bounds = map.getBounds();
+    var latMin = bounds.getSouth();
+    var latMax = bounds.getNorth();
+    var longMin = bounds.getWest();
+    var longMax = bounds.getEast();
+    xmlhttp.open("GET", "/low_coverage?lat_min="+ latMin + "&lat_max=" + latMax + "&lon_min="+ longMin + "&lon_max=" + longMax + "&provider=" + provider, true);
+    xmlhttp.send();
 }

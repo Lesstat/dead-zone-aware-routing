@@ -1,11 +1,10 @@
 use std::f64::consts::PI;
-use std::f64::EPSILON;
 
 use ordered_float::OrderedFloat;
 
 use graph::Length;
 
-const EARTH_RADIUS: f64 = 6371.0;
+const EARTH_RADIUS: f64 = 6_371_007.2;
 
 pub trait Coord {
     fn lat(&self) -> f64;
@@ -15,7 +14,17 @@ pub trait Coord {
 pub trait Point {
     fn x(&self) -> f64;
     fn y(&self) -> f64;
+    fn sub(&self, rhs: &Point) -> TuplePoint {
+        (self.x() - rhs.x(), self.y() - rhs.y())
+    }
+    fn mul(&self, rhs: &Point) -> TuplePoint {
+        (self.x() * rhs.x(), self.y() * rhs.y())
+    }
+    fn sum(&self) -> f64 {
+        self.x() + self.y()
+    }
 }
+
 
 pub type TuplePoint = (f64, f64);
 
@@ -29,6 +38,8 @@ impl Point for TuplePoint {
         self.1
     }
 }
+
+
 
 impl Coord for TuplePoint {
     #[inline]
@@ -44,33 +55,25 @@ impl Coord for TuplePoint {
 pub fn project<C: Coord>(point: &C, lat0: f64) -> TuplePoint {
     let degree = 2.0 * PI / 360.0;
     let point = (point.lat() * degree, point.lon() * degree);
-
     (EARTH_RADIUS * point.0, EARTH_RADIUS * lat0.cos() * point.1)
 }
 
 
+// inspiration from https://gis.stackexchange.com/questions/36841/line-intersection-with-circle-on-a-sphere-globe-or-earth/36979#36979
 pub fn intersect<P: Point>(a: &P, b: &P, center: &P, r: f64) -> SegmentSection {
-    assert!(
-        (b.x() - a.x()).abs() >= EPSILON,
-        format!("b.x = {}; a.x={}", b.x(), a.x())
-    );
-    let m = (b.y() - a.y()) / (b.x() - a.x());
-    let c = a.y() + m * (-a.x());
-    let a_quad = m * m + 1.0;
-    let b_quad = -2.0 * center.x() + (c - center.y()) * 2.0 * m;
-    let c_quad = c * c + center.y() * center.y() - 2.0 * c * center.y() - r * r +
-        center.x() * center.x();
-    let d_quad = b_quad * b_quad - 4.0 * a_quad * c_quad;
+    let v = a.sub(center);
+    let u = b.sub(a);
+    let alpha = u.mul(&u).sum();
+    let beta = u.mul(&v).sum();
+    let gamma = v.mul(&v).sum() - r * r;
 
-    if d_quad > 0.0 {
-        let x1 = (-b_quad + d_quad.sqrt()) / (2.0 * a_quad);
-        let x2 = (-b_quad - d_quad.sqrt()) / (2.0 * a_quad);
-        let t1 = (x1 - a.x()) / (b.x() - a.x());
-        let t2 = (x2 - a.x()) / (b.x() - a.x());
-        return SegmentSection::new(t1, t2);
+    let tmp = beta.powi(2) - alpha * gamma;
+    if tmp < 0f64 {
+        return SegmentSection::empty();
     }
-    SegmentSection::empty()
-
+    let t1 = (-beta + tmp.sqrt()) / alpha;
+    let t2 = (-beta - tmp.sqrt()) / alpha;
+    SegmentSection::new(t1, t2)
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -102,8 +105,13 @@ impl SegmentSection {
         }
     }
     pub fn is_empty(&self) -> bool {
-        self.end.into_inner() - self.start.into_inner() <= 0.0
+        self.length() <= 0.0
     }
+
+    pub fn is_full(&self) -> bool {
+        self.length() >= 1.0
+    }
+
     pub fn is_overlapping(&self, other: &Self) -> bool {
         if self.start < other.start {
             self.end >= other.start
@@ -169,6 +177,13 @@ fn circle_includes_segment() {
 #[test]
 fn circle_includes_one_endpoint() {
     let result = intersect(&(1.0, 1.0), &(2.0, 1.0), &(1.0, 1.0), 0.5);
+    assert_eq!(SegmentSection::new(0.0, 0.5), result);
+    assert_eq!(false, result.is_empty());
+}
+
+#[test]
+fn segment_goes_upward() {
+    let result = intersect(&(1.0, 1.0), &(1.0, 2.0), &(1.0, 1.0), 0.5);
     assert_eq!(SegmentSection::new(0.0, 0.5), result);
     assert_eq!(false, result.is_empty());
 }
