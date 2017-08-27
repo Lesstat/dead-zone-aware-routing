@@ -55,7 +55,11 @@ impl Coord for TuplePoint {
 pub fn project<C: Coord>(point: &C, lat0: f64) -> TuplePoint {
     let degree = 2.0 * PI / 360.0;
     let point = (point.lat() * degree, point.lon() * degree);
-    (EARTH_RADIUS * point.0, EARTH_RADIUS * lat0.cos() * point.1)
+    let x = EARTH_RADIUS * point.0;
+    let y = EARTH_RADIUS * lat0.cos() * point.1;
+    assert!(!x.is_nan(), "x is NaN");
+    assert!(!y.is_nan(), "y is NaN");
+    (x, y)
 }
 
 
@@ -68,11 +72,14 @@ pub fn intersect<P: Point>(a: &P, b: &P, center: &P, r: f64) -> SegmentSection {
     let gamma = v.mul(&v).sum() - r * r;
 
     let tmp = beta.powi(2) - alpha * gamma;
-    if tmp < 0f64 {
+    if tmp <= 0f64 {
         return SegmentSection::empty();
     }
     let t1 = (-beta + tmp.sqrt()) / alpha;
     let t2 = (-beta - tmp.sqrt()) / alpha;
+    assert!(!t1.is_nan(), "t1 is NaN");
+    assert!(!t2.is_nan(), "t2 is NaN");
+
     SegmentSection::new(t1, t2)
 }
 
