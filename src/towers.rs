@@ -87,19 +87,54 @@ pub fn edge_coverage<'a, I: Iterator<Item = &'a Tower>>(
     let mut o2_sections = Vec::new();
     let mut telekom_sections = Vec::new();
     let mut vodafone_sections = Vec::new();
+    let mut tele_full = false;
+    let mut voda_full = false;
+    let mut o2_full = false;
     let _: Vec<()> = towers
         .into_iter()
         .flat_map(|iter| iter)
         .filter_map(|tower| {
+            match tower.net {
+                Provider::Telekom => {
+                    if tele_full {
+                        return None;
+                    }
+                }
+                Provider::Vodafone => {
+                    if voda_full {
+                        return None;
+                    }
+                }
+                Provider::O2 => {
+                    if o2_full {
+                        return None;
+                    }
+                }
+            }
             let s = project(s, tower.lat);
             let t = project(t, tower.lat);
             let tower_point = project(tower, tower.lat);
             let sec = intersect(&s, &t, &tower_point, tower.range);
             if !sec.is_empty() {
                 match tower.net {
-                    Provider::Telekom => telekom_sections.push(sec),
-                    Provider::Vodafone => vodafone_sections.push(sec),
-                    Provider::O2 => o2_sections.push(sec),
+                    Provider::Telekom => {
+                        if sec.is_full() {
+                            tele_full = true
+                        }
+                        telekom_sections.push(sec);
+                    }
+                    Provider::Vodafone => {
+                        if sec.is_full() {
+                            voda_full = true
+                        }
+                        vodafone_sections.push(sec);
+                    }
+                    Provider::O2 => {
+                        if sec.is_full() {
+                            o2_full = true
+                        }
+                        o2_sections.push(sec);
+                    }
                 };
                 return Some(());
             }
@@ -136,7 +171,10 @@ fn accumulate_sections(mut sections: Vec<SegmentSection>) -> f64 {
     });
 
     let res = sections.iter().fold(0.0, |acc, sec| acc + sec.length());
-    assert!(res <= 1.0 && res >= 0.0);
+    assert!(
+        res <= 1.0 && res >= 0.0,
+        format!("calculated illegal tower coverage of {}", res)
+    );
     res
 }
 
