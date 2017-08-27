@@ -215,7 +215,7 @@ impl Graph {
     }
     fn create_half_edges(edges: &[EdgeInfo]) -> Vec<HalfEdge> {
         edges
-            .iter()
+            .par_iter()
             .map(|e| {
                 HalfEdge {
                     endpoint: e.dest,
@@ -235,8 +235,11 @@ impl Graph {
     fn update_node_ids(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
         use std::collections::hash_map::HashMap;
 
-        let map: HashMap<OsmNodeId, (usize, &NodeInfo)> =
-            nodes.iter().enumerate().map(|n| (n.1.osm_id, n)).collect();
+        let map: HashMap<OsmNodeId, (usize, &NodeInfo)> = nodes
+            .par_iter()
+            .enumerate()
+            .map(|n| (n.1.osm_id, n))
+            .collect();
         edges.par_iter_mut().for_each(|e| {
             let (source_id, source) = map[&e.source];
             let (dest_id, dest) = map[&e.dest];

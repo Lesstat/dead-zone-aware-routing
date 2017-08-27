@@ -10,6 +10,7 @@ use rocket::http::RawStr;
 use geojson::{Value, Geometry, Feature, GeoJson, FeatureCollection};
 use serde_json;
 use bincode;
+use rayon::prelude::*;
 
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -87,7 +88,7 @@ pub fn towers(query: TowerQuery, towers: State<Vec<Tower>>) -> Result<Json<Strin
     bbox.add_coord(&(query.lat_max, query.lon_max));
     bbox.add_coord(&(query.lat_min, query.lon_min));
     let towers: Vec<&Tower> = towers
-        .iter()
+        .par_iter()
         .filter(|t| {
             t.net == query.provider && bbox.contains_point(t.lat, t.lon)
         })
