@@ -261,7 +261,8 @@ impl Graph {
             let (tele, voda, o2) = edge_coverage(
                 source,
                 dest,
-                grid.adjacent_towers(source, 10500.0, towers).unwrap(),
+                grid.adjacent_towers(source, 15000.0, towers)
+                    .unwrap_or_default(),
             );
 
             coverage.set(&Provider::Telekom, n, tele);
@@ -328,8 +329,8 @@ fn graph_creation() {
             4,
             &HalfEdge {
                 endpoint: 4,
-                length: 15.718725161325155,
-                time: 15.718725161325155,
+                length: 15718.742925384355,
+                time: 15718.742925384355,
                 for_cars: true,
                 for_pedestrians: true,
             },
