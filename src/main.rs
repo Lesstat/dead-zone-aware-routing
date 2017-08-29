@@ -1,7 +1,7 @@
 #![feature(plugin)]
 #![plugin(rocket_codegen)]
 
-extern crate fapra;
+extern crate dzr;
 
 extern crate heapsize;
 extern crate rocket;
@@ -11,7 +11,7 @@ use clap::{App, Arg};
 use heapsize::HeapSizeOf;
 
 fn main() {
-    let matches = App::new("Flos Funkloch-aware Routenplaner")
+    let matches = App::new("Dead-Zone-aware Routing")
         .author("Florian Barth <florianbarth@gmx.de>")
         .arg(
             Arg::with_name("graph-file")
@@ -38,14 +38,14 @@ fn main() {
     let path = matches.value_of("graph-file").expect("No Graph-file given");
     let preprocessed = matches.is_present("preprocessed");
     let g = if preprocessed {
-        fapra::load_preprocessed_graph(path)
+        dzr::load_preprocessed_graph(path)
     } else {
         let tower_path = matches.value_of("tower-file").expect(
             "for pbf files a tower file is needed",
         );
-        let mut towers = fapra::load_towers(tower_path).expect("Could not load towers file");
-        let graph = fapra::load_graph(path, &mut towers);
-        fapra::ApplicationState { graph, towers }
+        let mut towers = dzr::load_towers(tower_path).expect("Could not load towers file");
+        let graph = dzr::load_graph(path, &mut towers);
+        dzr::ApplicationState { graph, towers }
     };
 
 
@@ -62,13 +62,13 @@ fn main() {
         .mount(
             "/",
             routes![
-                fapra::web::route,
-                fapra::web::next_node_to,
-                fapra::web::serve_files,
-                fapra::web::towers,
-                fapra::web::download,
-                fapra::web::map_boundary,
-                fapra::web::low_coverage,
+                dzr::web::route,
+                dzr::web::next_node_to,
+                dzr::web::serve_files,
+                dzr::web::towers,
+                dzr::web::download,
+                dzr::web::map_boundary,
+                dzr::web::low_coverage,
             ],
         )
         .manage(g.graph)

@@ -1,6 +1,6 @@
 [package]
-name = "fapra"
-version = "0.1.0"
+name = "dzr"
+version = "1.0.0"
 authors = ["Florian Barth <florianbarth@gmx.de>"]
 
 [dependencies]

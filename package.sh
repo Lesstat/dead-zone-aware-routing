@@ -1,6 +1,7 @@
 #! /bin/bash
 
-rm -f flos_fapra.tar
+ARCHIVE="dzr.tar"
+rm -f $ARCHIVE
 cargo build --release
-tar --transform 's/.*\///g' -cvf flos_fapra.tar target/release/fapra 
-tar -uvf flos_fapra.tar static/*
+tar --transform 's/.*\///g' -cvf $ARCHIVE target/release/dzr 
+tar -uvf $ARCHIVE static/*
