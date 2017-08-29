@@ -1,6 +1,6 @@
 mod alg;
 
-pub use self::alg::Movement;
+pub use self::alg::{RoutingGoal, Movement};
 use grid::{Grid, NodeInfoWithIndex};
 use geom::{Coord, haversine_distance};
 use towers::*;
@@ -138,11 +138,6 @@ pub struct Graph {
     pub coverage: Coverage,
 }
 
-#[derive(Debug)]
-pub enum RoutingGoal {
-    Length,
-    Speed,
-}
 
 impl Graph {
     pub fn new(

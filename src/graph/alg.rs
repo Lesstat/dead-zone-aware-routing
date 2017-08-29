@@ -1,4 +1,4 @@
-use super::{Graph, NodeId, Length, RoutingGoal};
+use super::{Graph, NodeId, Length};
 use towers::Provider;
 
 use std::cmp::Ordering;
@@ -146,6 +146,12 @@ impl<'a> Dijkstra<'a> {
 pub enum Movement {
     Car,
     Foot,
+}
+
+#[derive(Debug)]
+pub enum RoutingGoal {
+    Length,
+    Speed,
 }
 
 type NodeSequence = VecDeque<usize>;
