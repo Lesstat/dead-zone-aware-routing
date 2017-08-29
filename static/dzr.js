@@ -79,6 +79,7 @@ function calcDist(goal, move, provider){
 	    };
 	    document.getElementById("dist").innerHTML = xmlhttp.response.distance;
 	    document.getElementById("time").innerHTML = xmlhttp.response.travel_time;
+	    document.getElementById("prov").innerHTML = provider;
 	    geoJson.addLayer(L.geoJSON(xmlhttp.response.route.geometry, { style: myStyle }));
 	}
 	else {
