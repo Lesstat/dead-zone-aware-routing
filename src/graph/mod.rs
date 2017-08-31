@@ -203,8 +203,8 @@ impl Graph {
         });
         edges.dedup_by_key(|edge| (edge.source, edge.dest));
 
-        calc_offset_inner(&edges, &mut node_offsets);
-        let out_edges = Graph::create_half_edges(&edges);
+        calc_offset_inner(edges, &mut node_offsets);
+        let out_edges = Graph::create_half_edges(edges);
 
         (node_offsets, out_edges)
     }
