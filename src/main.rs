@@ -69,6 +69,7 @@ fn main() {
                 dzr::web::download,
                 dzr::web::map_boundary,
                 dzr::web::low_coverage,
+                dzr::web::redirect_to_index,
             ],
         )
         .manage(g.graph)

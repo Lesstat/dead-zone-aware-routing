@@ -4,7 +4,7 @@ use towers::{Provider, Tower};
 
 use rocket::State;
 use rocket::request::{FormItems, FromForm, Request, FromFormValue};
-use rocket::response::{self, Response, Responder, NamedFile};
+use rocket::response::{self, Response, Responder, NamedFile, Redirect};
 use rocket::response::content::Json;
 use rocket::http::RawStr;
 use geojson::{Value, Geometry, Feature, GeoJson, FeatureCollection};
@@ -343,4 +343,9 @@ pub fn download(
 pub fn serve_files(path: PathBuf) -> Option<NamedFile> {
     let p = Path::new("static/").join(path);
     NamedFile::open(p).ok()
+}
+
+#[get("/")]
+pub fn redirect_to_index() -> Redirect {
+    Redirect::to("/files/index.html")
 }
