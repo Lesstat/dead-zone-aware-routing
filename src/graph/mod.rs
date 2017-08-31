@@ -78,14 +78,18 @@ impl EdgeInfo {
         }
     }
 
+    /// Prevent routes for cars from using this edge
     pub fn not_for_cars(&mut self) {
         self.for_cars = false;
     }
+    /// Prevent routes for pedestrians from using this edge
     pub fn not_for_pedestrians(&mut self) {
         self.for_pedestrians = false;
     }
 }
 
+/// HalfEdge structs do not need both endpoints as one of them can be
+/// concluded from its position in the offset array
 #[derive(HeapSizeOf, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HalfEdge {
     pub endpoint: NodeId,
@@ -96,6 +100,7 @@ pub struct HalfEdge {
 }
 
 impl HalfEdge {
+    /// Check if this edges is available for the chosen Movement type
     #[inline]
     pub fn is_not_for(&self, movement: &Movement) -> bool {
         match *movement {
@@ -104,6 +109,7 @@ impl HalfEdge {
         }
     }
 
+    /// Extract cost according to given routing goal
     #[inline]
     pub fn get_cost(&self, goal: &RoutingGoal) -> f64 {
         match *goal {
@@ -112,6 +118,8 @@ impl HalfEdge {
         }
     }
 
+    /// calculate needed time according to given routing goal
+    #[inline]
     pub fn get_time(&self, movement: &Movement) -> f64 {
         match *movement {
             Movement::Car => self.time,
@@ -146,7 +154,7 @@ impl Graph {
         towers: &mut Vec<Tower>,
     ) -> Graph {
         let grid = Grid::new(&mut node_info, 100);
-        Graph::update_node_ids(&node_info, &mut edge_infos);
+        Graph::rename_node_ids_and_calculate_distance(&node_info, &mut edge_infos);
         let node_count = node_info.len();
         let (node_offsets, edges) = Graph::calc_node_offsets(node_count, &mut edge_infos);
         let coverage = Graph::calculate_coverage(&node_info, &mut edge_infos, towers);
@@ -161,6 +169,8 @@ impl Graph {
 
     }
 
+    /// Returns an iterator over HalfEdges going out of node with ID id.
+    /// The iterator yields tuples in the form (EdgeId, HalfEdge)
     pub fn outgoing_edges_for(&self, id: NodeId) -> EdgeIter {
         EdgeIter {
             start: self.node_offsets[id].0,
@@ -170,6 +180,9 @@ impl Graph {
         }
     }
 
+    /// Creates the offset array of HalfEdges by sorting the edges by
+    /// source and target node and then iterating over all edges and
+    /// updating the Offsets
     fn calc_node_offsets(
         node_count: usize,
         edges: &mut Vec<EdgeInfo>,
@@ -208,6 +221,7 @@ impl Graph {
 
         (node_offsets, out_edges)
     }
+
     fn create_half_edges(edges: &[EdgeInfo]) -> Vec<HalfEdge> {
         edges
             .par_iter()
@@ -227,7 +241,7 @@ impl Graph {
         self.node_offsets.len()
     }
 
-    fn update_node_ids(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
+    fn rename_node_ids_and_calculate_distance(nodes: &[NodeInfo], edges: &mut [EdgeInfo]) {
         use std::collections::hash_map::HashMap;
 
         let map: HashMap<OsmNodeId, (usize, &NodeInfo)> = nodes
@@ -253,6 +267,7 @@ impl Graph {
 
         let grid = Grid::new(towers, 100);
         let coverage = Coverage::new(edges.len());
+
         edges.par_iter_mut().enumerate().for_each(|(n, e)| {
             let source = &nodes[e.source];
             let dest = &nodes[e.dest];

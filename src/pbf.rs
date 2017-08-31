@@ -7,6 +7,11 @@ use std::time::Instant;
 use graph::*;
 use towers::Tower;
 
+/// Loads the graph from a pbf file.
+///
+/// All edges and nodes that contain a highway tag and are accessible
+/// for either cars or pedestrians by the judgement of is_not_for_cars
+/// and is_not_for_pedestrians
 pub fn load_graph<P: AsRef<Path>>(p: P, towers: &mut Vec<Tower>) -> Graph {
     let fs = File::open(p).unwrap();
     let mut reader = OsmPbfReader::new(fs);
@@ -36,7 +41,7 @@ pub fn load_graph<P: AsRef<Path>>(p: P, towers: &mut Vec<Tower>) -> Graph {
                     let mut edge = EdgeInfo::new(
                         node.0 as NodeId,
                         w.nodes[index + 1].0 as NodeId,
-                        1.1, // TODO: calculate Length
+                        1.1, // calculating length happens inside the graph
                         speed,
                     );
                     if no_cars && no_pedestrians {
@@ -52,7 +57,7 @@ pub fn load_graph<P: AsRef<Path>>(p: P, towers: &mut Vec<Tower>) -> Graph {
                         let mut edge = EdgeInfo::new(
                             w.nodes[index + 1].0 as NodeId,
                             node.0 as NodeId,
-                            1.1, // TODO: calculate Length
+                            1.1, // calculating length happens inside the graph
                             speed,
                         );
                         if no_cars {

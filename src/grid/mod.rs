@@ -52,6 +52,9 @@ pub struct Grid {
 }
 
 impl Grid {
+    /// Creates Grid of size `size` with the data in `coords`. The
+    /// values in `coords` will be sorted by their cell index inside
+    /// the grid.
     pub fn new<C: Coord>(coords: &mut Vec<C>, size: usize) -> Grid {
         let mut b_box = BoundingBox::new();
 
@@ -87,6 +90,8 @@ impl Grid {
         g
     }
 
+    /// Converts coordinates to a index inside the grid.
+    /// Returns error if the coordinates are not inside the grid
     pub fn coord_to_index(&self, lat: f64, long: f64) -> Result<usize, ()> {
         if !self.b_box.contains_point(lat, long) {
             return Err(());
@@ -162,6 +167,7 @@ impl Grid {
             Err(())
         }
     }
+
     pub fn adjacent_towers<'a, C: Coord>(
         &self,
         coords: &C,

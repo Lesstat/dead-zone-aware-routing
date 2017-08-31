@@ -24,6 +24,8 @@ impl Point {
     }
 }
 
+/// Iterator that returns cell indices that form a rectangle with a
+/// certain distance to the given center index
 pub struct RadiusIter {
     center: Point,
     grid_size: isize,

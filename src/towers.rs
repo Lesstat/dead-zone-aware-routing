@@ -13,6 +13,10 @@ use serde::de::{self, Visitor};
 use heapsize::HeapSizeOf;
 
 
+/// Holds coverage values for all edge provider combination.
+/// Allows for coverage values to be written and read in
+/// parallel. This will cause race conditions if the same edge provider combination is
+/// written (and read) by more than one thread. Be careful!
 #[derive(Serialize, Deserialize)]
 pub struct Coverage(HashMap<Provider, UnsafeVec>, usize);
 impl Coverage {
@@ -78,7 +82,9 @@ pub struct Tower {
 }
 
 
-
+/// Calculate covearge of the edge between `s` and `t` by intersecting
+/// it with the range of all nearby `towers`. Afterwards the resulting
+/// covered section are checked for overlapping and accumulated.
 pub fn edge_coverage<'a, I: Iterator<Item = &'a Tower>>(
     s: &NodeInfo,
     t: &NodeInfo,
@@ -94,6 +100,9 @@ pub fn edge_coverage<'a, I: Iterator<Item = &'a Tower>>(
         .into_iter()
         .flat_map(|iter| iter)
         .filter_map(|tower| {
+            // really ugly hack that gives a great performance gain
+            // because most edges are covered completely by only one
+            // tower
             match tower.net {
                 Provider::Telekom => {
                     if tele_full {
@@ -157,6 +166,7 @@ fn accumulate_sections(mut sections: Vec<SegmentSection>) -> f64 {
             acc.push(sec.clone());
         } else {
             let last_sec = acc.pop().unwrap();
+            // if one SegmentSection is full we are finished here
             if last_sec.is_full() {
                 return vec![last_sec];
             }

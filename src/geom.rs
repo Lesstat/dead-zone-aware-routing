@@ -6,11 +6,15 @@ use graph::Length;
 
 const EARTH_RADIUS: f64 = 6_371_007.2;
 
+/// Allow uniform access to structs with spherical coordinates
 pub trait Coord {
     fn lat(&self) -> f64;
     fn lon(&self) -> f64;
 }
 
+/// Allow uniform access to structs with coordinates on a plain as
+/// well as multiplying and subtraction operations that work like a -
+/// b = (a.x - b.x, a.y - b.y)
 pub trait Point {
     fn x(&self) -> f64;
     fn y(&self) -> f64;
@@ -52,6 +56,7 @@ impl Coord for TuplePoint {
     }
 }
 
+/// Projects a coordinate to a point relative to latitude
 pub fn project<C: Coord>(point: &C, lat0: f64) -> TuplePoint {
     let degree = 2.0 * PI / 360.0;
     let point = (point.lat() * degree, point.lon() * degree);
@@ -63,7 +68,9 @@ pub fn project<C: Coord>(point: &C, lat0: f64) -> TuplePoint {
 }
 
 
-// inspiration from https://gis.stackexchange.com/questions/36841/line-intersection-with-circle-on-a-sphere-globe-or-earth/36979#36979
+/// Intersect a line segment defined by points `a` and `b` with a circle
+/// with center `center` and radius `r`.
+///inspiration from https://gis.stackexchange.com/questions/36841/line-intersection-with-circle-on-a-sphere-globe-or-earth/36979#36979
 pub fn intersect<P: Point>(a: &P, b: &P, center: &P, r: f64) -> SegmentSection {
     let v = a.sub(center);
     let u = b.sub(a);
@@ -145,7 +152,7 @@ impl SegmentSection {
     }
 }
 
-// Adapted from https://github.com/georust/rust-geo
+/// Calculate the haversine distance. Adapted from https://github.com/georust/rust-geo
 pub fn haversine_distance<C1: Coord, C2: Coord>(a: &C1, b: &C2) -> Length {
     let theta1 = a.lat().to_radians();
     let theta2 = b.lat().to_radians();
